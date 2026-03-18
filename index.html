@@ -1,0 +1,1640 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>からだのおしらせ</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;500;600&family=Noto+Sans+JP:wght@300;400;500&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+<style>
+/* ════════════════════════════
+   CSS VARIABLES — defaults (night)
+════════════════════════════ */
+:root{
+  --tx:  rgba(255,255,255,0.95);
+  --tx2: rgba(255,255,255,0.62);
+  --tx3: rgba(255,255,255,0.40);
+  --glass-bg: rgba(255,255,255,0.11);
+  --glass-bd: rgba(255,255,255,0.22);
+  --card-bg:  rgba(255,255,255,0.13);
+  --cat-line: rgba(255,255,255,0.45);
+  --card-bd:  rgba(255,255,255,0.20);
+  --prog-bg:  rgba(0,0,0,0.28);
+  --nav-bg:   rgba(0,0,0,0.32);
+  --sp-track: rgba(255,255,255,0.15);
+  --shadow:   0 2px 12px rgba(0,0,0,0.35);
+}
+
+/* ─── reset ─── */
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;overflow-x:hidden;}
+body{font-family:'Noto Sans JP',sans-serif;min-height:100dvh;position:relative;
+  color:var(--tx); transition:color 1s;}
+
+/* ─── sky canvas ─── */
+#sky{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none;}
+
+.wrap{position:relative;z-index:1;}
+
+/* ─── glass card ─── */
+.glass{
+  background:var(--card-bg);
+  backdrop-filter:blur(16px) saturate(160%);
+  -webkit-backdrop-filter:blur(16px) saturate(160%);
+  border:1px solid var(--card-bd);
+  transition:background 0.8s, border 0.8s;
+}
+
+/* ════════════════════════════
+   STICKY PROGRESS
+════════════════════════════ */
+.sticky-prog{
+  position:sticky;top:0;z-index:50;
+  padding:10px 18px 8px;
+  background:var(--prog-bg);
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  border-bottom:1px solid var(--glass-bd);
+  transition:background 0.8s;
+}
+.sp-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;}
+.sp-lbl{font-size:10px;color:var(--tx2);letter-spacing:0.08em;}
+.sp-cnt{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tx);}
+.sp-tracks{display:flex;flex-direction:column;gap:5px;}
+.sp-row2{display:flex;align-items:center;gap:8px;}
+.sp-bar-label{font-size:9px;color:var(--tx3);letter-spacing:0.08em;width:28px;flex-shrink:0;text-align:right;}
+.sp-track{height:5px;background:var(--sp-track);border-radius:3px;overflow:hidden;flex:1;}
+.sp-fill-meal{height:100%;border-radius:3px;transition:width 0.6s ease;
+  background:linear-gradient(90deg,rgba(255,200,80,0.9),rgba(255,160,60,0.9));}
+.sp-fill-care{height:100%;border-radius:3px;transition:width 0.6s ease;
+  background:linear-gradient(90deg,rgba(100,200,160,0.85),rgba(130,220,200,0.85));}
+
+/* ════════════════════════════
+   HEADER
+════════════════════════════ */
+.header{padding:14px 20px 12px;display:flex;justify-content:space-between;align-items:flex-start;}
+.app-title{font-family:'Shippori Mincho','Noto Sans JP',serif;font-size:20px;color:var(--tx);
+  letter-spacing:0.06em;line-height:1;text-shadow:var(--shadow);}
+.app-date{font-size:11px;color:var(--tx2);margin-top:5px;}
+.greeting{font-size:12px;color:var(--tx2);margin-top:3px;font-weight:300;}
+.clock{font-family:'JetBrains Mono',monospace;font-size:30px;color:var(--tx);
+  text-align:right;text-shadow:var(--shadow);}
+
+/* ════════════════════════════
+   BATH STRIP
+════════════════════════════ */
+.bath-strip{padding:0 18px 12px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
+.bath-lbl{font-size:10px;color:var(--tx3);letter-spacing:0.1em;text-transform:uppercase;}
+.bath-chip{
+  padding:4px 12px;border-radius:20px;
+  border:1px solid var(--card-bd);
+  background:var(--card-bg);
+  font-size:11px;color:var(--tx2);
+  cursor:pointer;transition:all 0.2s;
+}
+.bath-chip.active{
+  border-color:rgba(255,255,255,0.9);
+  color:#fff;
+  background:rgba(255,255,255,0.28);
+  text-shadow:0 1px 4px rgba(0,0,0,0.3);
+}
+
+/* ════════════════════════════
+   SECTION LABEL
+════════════════════════════ */
+.sec-lbl{font-size:10px;letter-spacing:0.13em;text-transform:uppercase;
+  color:var(--tx2);margin-bottom:9px;
+  display:flex;align-items:center;gap:8px;}
+.sec-lbl::after{content:'';flex:1;height:1px;background:var(--card-bd);}
+
+/* ════════════════════════════
+   ALERT
+════════════════════════════ */
+.alert{margin:0 18px 12px;border-radius:14px;padding:10px 14px;
+  background:rgba(240,140,60,0.22);border:1px solid rgba(240,140,60,0.38);
+  font-size:12px;color:var(--tx);display:flex;align-items:center;gap:8px;}
+.alert.hidden{display:none;}
+
+/* ════════════════════════════
+   SWIPEABLE CARD
+════════════════════════════ */
+.cards-section{padding:0 18px;}
+.subsec{margin-bottom:10px;}
+
+.card-outer{position:relative;margin-bottom:8px;border-radius:16px;overflow:hidden;}
+
+.reveal-done{
+  position:absolute;inset:0;border-radius:16px;
+  background:linear-gradient(90deg,#3dba6e,#52cc82);
+  display:flex;align-items:center;padding-left:20px;gap:10px;
+  opacity:0; transition:opacity 0.08s;
+}
+.reveal-skip{
+  position:absolute;inset:0;border-radius:16px;
+  background:linear-gradient(90deg,#7a8fa8,#8fa4bc);
+  display:flex;align-items:center;justify-content:flex-end;padding-right:20px;gap:10px;
+  opacity:0; transition:opacity 0.08s;
+}
+/* show reveal layers only while swiping */
+.card-outer.swiping-done .reveal-done { opacity:1; }
+.card-outer.swiping-skip .reveal-skip { opacity:1; }
+.rv-icon{font-size:28px;}
+.rv-lbl{font-size:14px;font-weight:700;color:#fff;}
+
+.swipe-card{
+  position:relative;z-index:2;
+  border-radius:16px;padding:13px 14px;
+  cursor:pointer;will-change:transform;touch-action:pan-y;user-select:none;
+  transition:transform 0.06s linear, opacity 0.06s linear;
+  box-shadow:0 2px 14px rgba(0,0,0,0.15);
+}
+.swipe-card::before{content:'';position:absolute;inset:0;border-radius:16px;
+  pointer-events:none;opacity:0;z-index:10;}
+.swipe-card.td::before{background:rgba(40,200,80,0.20);opacity:1;}
+.swipe-card.ts::before{background:rgba(200,40,40,0.20);opacity:1;}
+
+.swipe-card.state-done{opacity:0.42;}
+.swipe-card.state-skip{opacity:0.35;}
+.swipe-card.state-snooze{border-style:dashed!important;}
+@keyframes cpulse{0%,100%{box-shadow:0 0 0 1.5px rgba(255,255,255,0.5);}50%{box-shadow:0 0 0 3px rgba(255,255,255,0.10);}}
+.swipe-card.upcoming{animation:cpulse 2.5s infinite;}
+
+.c-top{display:flex;align-items:flex-start;gap:11px;}
+.c-icon{font-size:22px;flex-shrink:0;margin-top:1px;}
+.c-body{flex:1;min-width:0;}
+.c-title{font-size:13px;font-weight:500;color:var(--tx);line-height:1.3;}
+.c-msg{font-size:11px;color:var(--tx2);margin-top:3px;line-height:1.55;font-style:italic;}
+.c-time{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--tx3);margin-top:4px;}
+.c-right{flex-shrink:0;}
+
+/* status badges — always readable regardless of background */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;
+  font-size:11px;font-weight:700;white-space:nowrap;}
+.b-done{background:rgba(30,180,70,0.28);color:#7df5a0;border:1px solid rgba(30,180,70,0.45);}
+.b-skip{background:rgba(90,110,140,0.22);color:rgba(160,180,210,0.95);border:1px solid rgba(90,110,140,0.40);}
+.b-snooze{background:rgba(180,160,255,0.20);color:#c8b8ff;border:1px solid rgba(180,160,255,0.38);}
+
+/* expand */
+.c-expand{display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--card-bd);}
+.c-expand.open{display:block;}
+.exp-hint{font-size:10px;color:var(--tx3);text-align:center;margin-bottom:8px;}
+.exp-btns{display:flex;gap:6px;}
+.ebtn{flex:1;padding:8px 4px;border-radius:11px;border:none;font-size:12px;
+  font-family:'Noto Sans JP',sans-serif;font-weight:700;cursor:pointer;
+  text-align:center;transition:opacity 0.14s;}
+.eb-done  {background:rgba(30,160,70,0.88);   color:#fff;}
+.eb-snooze{background:rgba(100,90,180,0.82);  color:#fff;}
+.eb-skip  {background:rgba(90,110,140,0.85);  color:#fff;}
+.eb-undo  {background:rgba(80,80,100,0.70);   color:#fff;}
+.ebtn:active{opacity:0.75;}
+
+/* ════════════════════════════
+   CATEGORY HEADER
+════════════════════════════ */
+/* ── category row: label only, no card ── */
+.cat-hdr{
+  display:flex;align-items:center;gap:10px;
+  padding:8px 6px 8px 14px;
+  cursor:pointer;
+  border:none;background:transparent;
+  /* left accent line = "tappable section" cue */
+  border-left:3px solid var(--cat-line,rgba(255,255,255,0.45));
+  border-radius:0;
+  transition:opacity 0.15s, border-color 0.15s;
+  margin-bottom:8px;
+}
+.cat-hdr:active{opacity:0.65;}
+.cat-hdr.open{border-left-color:var(--tx2);}
+.cat-ico{font-size:18px;flex-shrink:0;opacity:0.80;}
+.cat-inf{flex:1;}
+.cat-nm{font-size:13px;font-weight:700;color:var(--tx);letter-spacing:0.04em;}
+.cat-sb{font-size:10px;color:var(--tx2);margin-top:1px;}
+.cat-dots{display:flex;gap:4px;align-items:center;}
+.cdot{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,0.22);transition:all 0.2s;}
+.cdot.done{background:rgba(60,200,100,0.9);}
+.cdot.skip{background:rgba(100,130,170,0.8);}
+.cdot.snooze{background:rgba(190,170,255,0.75);}
+.cat-chev{font-size:14px;color:var(--tx2);transition:transform 0.2s;margin-left:auto;opacity:0.80;font-weight:700;flex-shrink:0;}
+.cat-hdr.open .cat-chev{transform:rotate(180deg);}
+.cat-body{display:none;padding-bottom:4px;}
+.cat-body.open{display:block;}
+
+/* ════════════════════════════
+   SWIPE FLASH OVERLAY
+════════════════════════════ */
+.flash{position:fixed;inset:0;z-index:500;pointer-events:none;
+  display:flex;align-items:center;justify-content:center;opacity:0;}
+.flash-icon{font-size:80px;transform:scale(0.5);transition:transform 0.2s cubic-bezier(0.34,1.56,0.64,1);}
+.flash.show{opacity:1;}
+.flash.show .flash-icon{transform:scale(1);}
+.flash.fd{background:rgba(60,200,100,0.15);}
+.flash.fs{background:rgba(100,130,170,0.18);}
+
+/* ════════════════════════════
+   MILESTONE POP
+════════════════════════════ */
+.mpop{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0.6);
+  background:rgba(0,0,0,0.55);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+  border:1px solid rgba(255,255,255,0.28);border-radius:24px;
+  padding:22px 28px;text-align:center;z-index:600;
+  opacity:0;pointer-events:none;transition:all 0.35s cubic-bezier(0.34,1.56,0.64,1);
+  max-width:280px;width:85vw;}
+.mpop.show{opacity:1;transform:translate(-50%,-50%) scale(1);}
+.mp-em{font-size:48px;display:block;margin-bottom:8px;}
+.mp-ti{font-size:17px;font-weight:700;color:#fff;margin-bottom:4px;}
+.mp-ms{font-size:12px;color:rgba(255,255,255,0.75);line-height:1.6;}
+
+/* ════════════════════════════
+   PANELS
+════════════════════════════ */
+.panel{display:none;padding:56px 18px 120px;}
+.panel.visible{display:block;}
+.p-title{font-family:'Shippori Mincho','Noto Sans JP',serif;font-size:22px;color:var(--tx);
+  margin-bottom:18px;text-shadow:var(--shadow);}
+.week-row{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-bottom:18px;}
+.wcell{text-align:center;}
+.wc-lbl{font-size:9px;color:var(--tx2);margin-bottom:4px;}
+.wc-dot{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:10px;margin:0 auto;color:var(--tx2);
+  font-family:'JetBrains Mono',monospace;
+  background:var(--card-bg);border:1px solid var(--card-bd);}
+.wc-dot.has{border-color:rgba(255,255,255,0.65);color:var(--tx);}
+.wc-dot.now{background:rgba(255,255,255,0.30);color:#fff;border-color:rgba(255,255,255,0.85);}
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.sbox{border-radius:16px;padding:14px;}
+.sbox-ti{font-size:10px;color:var(--tx2);margin-bottom:5px;}
+.sbox-v{font-family:'Shippori Mincho','Noto Sans JP',serif;font-size:30px;color:var(--tx);line-height:1;}
+.sbox-s{font-size:10px;color:var(--tx2);margin-top:3px;}
+.sg{border-radius:16px;margin-bottom:12px;overflow:hidden;}
+.sg-ti{font-size:10px;letter-spacing:0.1em;color:var(--tx2);
+  padding:9px 14px 6px;text-transform:uppercase;border-bottom:1px solid var(--card-bd);}
+/* toggle switch */
+.tgl-row{border-bottom:1px solid var(--card-bd);padding:9px 14px;}
+.tgl-row:last-child{border-bottom:none;}
+.tgl-wrap{
+  width:44px;height:26px;border-radius:13px;
+  position:relative;cursor:pointer;flex-shrink:0;
+  transition:background 0.22s;
+}
+.tgl-dot{
+  position:absolute;width:20px;height:20px;border-radius:50%;
+  background:white;top:3px;
+  transition:left 0.22s;
+  box-shadow:0 1px 4px rgba(0,0,0,0.25);
+  pointer-events:none;
+}
+.sg-row{display:flex;justify-content:space-between;align-items:center;
+  padding:10px 14px;border-bottom:1px solid var(--card-bd);}
+.sg-row:last-child{border-bottom:none;}
+.sg-lbl{font-size:13px;color:var(--tx);}
+.sg-sub{font-size:10px;color:var(--tx2);margin-top:2px;}
+.ti{background:rgba(0,0,0,0.20);border:1px solid var(--card-bd);
+  border-radius:8px;padding:5px 9px;color:var(--tx);
+  font-family:'JetBrains Mono',monospace;font-size:13px;width:78px;text-align:center;}
+.ti:focus{outline:none;border-color:rgba(255,255,255,0.6);}
+.abtn{padding:5px 13px;border-radius:12px;border:1px solid var(--card-bd);
+  background:var(--card-bg);font-size:12px;font-family:'Noto Sans JP',sans-serif;
+  color:var(--tx);cursor:pointer;}
+
+/* ════════════════════════════
+   BOTTOM NAV
+════════════════════════════ */
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;
+  background:var(--nav-bg);
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border-top:1px solid var(--card-bd);display:flex;
+  padding:8px 0 max(10px,env(safe-area-inset-bottom));z-index:100;transition:background 0.8s;}
+.nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;
+  padding:5px;cursor:pointer;opacity:0.36;transition:opacity 0.2s;}
+.nav-item.active{opacity:1;}
+.nav-icon{font-size:20px;}
+.nav-lbl{font-size:9px;color:var(--tx2);letter-spacing:0.04em;}
+
+/* ════════════════════════════
+   TOAST
+════════════════════════════ */
+.toast{
+  position:fixed;
+  /* sits just below the sticky progress bar (~48px height) */
+  top:54px; left:50%;
+  transform:translateX(-50%) translateY(-20px);
+  opacity:0;pointer-events:none;
+  background:rgba(30,30,50,0.82);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  border:1px solid rgba(255,255,255,0.18);border-radius:20px;
+  padding:8px 18px;font-size:13px;font-weight:500;color:#fff;
+  z-index:999;
+  transition:transform 0.25s cubic-bezier(0.34,1.56,0.64,1), opacity 0.25s;
+  display:flex;align-items:center;gap:8px;max-width:80vw;
+  box-shadow:0 3px 16px rgba(0,0,0,0.25);}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1;}
+.spacer{height:110px;}
+
+/* ── NOTIFICATION MODAL ── */
+.notif-overlay{
+  position:fixed;inset:0;z-index:800;
+  background:rgba(0,0,0,0.45);
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  opacity:0;pointer-events:none;
+  transition:opacity 0.3s;
+}
+.notif-overlay.show{opacity:1;pointer-events:all;}
+
+.notif-modal{
+  position:fixed;
+  bottom:-100%;left:50%;
+  transform:translateX(-50%);
+  width:min(92vw,420px);
+  background:rgba(20,20,35,0.92);
+  backdrop-filter:blur(28px);-webkit-backdrop-filter:blur(28px);
+  border:1px solid rgba(255,255,255,0.18);
+  border-radius:28px 28px 0 0;
+  padding:10px 24px 36px;
+  z-index:810;
+  transition:bottom 0.4s cubic-bezier(0.34,1.20,0.64,1);
+  text-align:center;
+}
+.notif-modal.show{bottom:0;}
+.nm-pill{
+  width:36px;height:4px;border-radius:2px;
+  background:rgba(255,255,255,0.25);
+  margin:0 auto 16px;
+}
+.nm-time{
+  font-family:'JetBrains Mono',monospace;
+  font-size:11px;color:rgba(255,255,255,0.45);
+  margin-bottom:12px;letter-spacing:0.08em;
+}
+.nm-icon{font-size:52px;margin-bottom:10px;line-height:1;}
+.nm-title{
+  font-family:'Shippori Mincho','Noto Sans JP',serif;
+  font-size:20px;font-weight:600;color:#fff;
+  margin-bottom:8px;line-height:1.4;
+}
+.nm-msg{
+  font-size:13px;color:rgba(255,255,255,0.68);
+  line-height:1.7;margin-bottom:20px;font-style:italic;
+}
+.nm-hint{
+  font-size:10px;color:rgba(255,255,255,0.30);
+  margin-bottom:14px;letter-spacing:0.05em;
+}
+.nm-btns{display:flex;gap:8px;margin-bottom:4px;}
+.nm-btn{
+  flex:1;padding:13px 6px;border-radius:14px;border:none;
+  font-size:13px;font-family:'Noto Sans JP',sans-serif;font-weight:700;
+  cursor:pointer;transition:opacity 0.15s;
+}
+.nm-btn:active{opacity:0.72;}
+.nm-skip  {background:rgba(100,120,160,0.65);color:rgba(255,255,255,0.88);}
+.nm-snooze{background:rgba(110,90,190,0.65); color:rgba(255,255,255,0.88);}
+.nm-done  {background:rgba(50,180,100,0.80);  color:#fff;}
+
+/* preview badge on cat-hdr area — small "test notif" button */
+.test-notif-btn:active{background:rgba(255,255,255,0.15);}
+</style>
+</head>
+<body>
+
+<canvas id="sky"></canvas>
+<div class="flash" id="flash"><div class="flash-icon" id="flashIco"></div></div>
+<div class="mpop" id="mpop"><span class="mp-em" id="mpEm"></span><div class="mp-ti" id="mpTi"></div><div class="mp-ms" id="mpMs"></div></div>
+<div class="toast" id="toast"><span id="ti"></span><span id="tm"></span></div>
+
+<div class="wrap">
+
+<!-- sticky progress -->
+<div class="sticky-prog">
+  <div class="sp-row"><span class="sp-lbl" id="spMsg">今日もスタート</span><span class="sp-cnt" id="spCnt"></span></div>
+  <div class="sp-tracks">
+    <div class="sp-row2">
+      <span class="sp-bar-label">食事</span>
+      <div class="sp-track"><div class="sp-fill-meal" id="spMeal" style="width:0%"></div></div>
+      <span class="sp-cnt" id="spMealCnt" style="font-size:10px;width:28px;text-align:left;"></span>
+    </div>
+    <div class="sp-row2">
+      <span class="sp-bar-label">ケア</span>
+      <div class="sp-track"><div class="sp-fill-care" id="spCare" style="width:0%"></div></div>
+      <span class="sp-cnt" id="spCareCnt" style="font-size:10px;width:28px;text-align:left;"></span>
+    </div>
+  </div>
+</div>
+
+<!-- main -->
+<div id="mainPanel">
+  <div class="header">
+    <div>
+      <div class="app-title">からだのおしらせ</div>
+      <div class="app-date" id="appDate"></div>
+      <div class="greeting" id="greeting"></div>
+    </div>
+    <div><div class="clock" id="clock"></div></div>
+  </div>
+
+  <div class="bath-strip" style="padding-bottom:6px;">
+    <span class="bath-lbl">☀️ 今日</span>
+    <div class="bath-chip active" data-mode="home">🏠 おうち</div>
+    <div class="bath-chip"        data-mode="out">🚶 外出</div>
+  </div>
+  <div class="bath-strip">
+    <span class="bath-lbl">🛁</span>
+    <div class="bath-chip active" data-v="none"    onclick="setBath('none')">未定</div>
+    <div class="bath-chip"        data-v="morning" onclick="setBath('morning')">朝風呂</div>
+    <div class="bath-chip"        data-v="evening" onclick="setBath('evening')">夕方湯船</div>
+    <div class="bath-chip"        data-v="night"   onclick="setBath('night')">夜風呂</div>
+    <div class="bath-chip"        data-v="split"   onclick="setBath('split')">夜風呂＋朝シャン</div>
+  </div>
+  <div class="alert hidden" id="alertBanner"><span>⚠️</span><span id="alertMsg"></span></div>
+
+  <div class="cards-section">
+    <div class="subsec">
+      <div class="sec-lbl">🍽️ 食事（マスト）</div>
+      <div id="mealCards"></div>
+    </div>
+    <div class="subsec">
+      <div class="sec-lbl">ケア・一息</div>
+      <div class="cat-hdr" id="movHdr" onclick="toggleCat('move')">
+        <div class="cat-ico">🏃</div>
+        <div class="cat-inf"><div class="cat-nm">からだを動かす</div><div class="cat-sb" id="movSb">散歩・ストレッチ</div></div>
+        <div class="cat-dots" id="movDots"></div><span class="cat-chev" id="movChev">▾</span>
+      </div>
+      <div class="cat-body" id="movBody"></div>
+    </div>
+    <div class="subsec" style="margin-bottom:0">
+      <div class="cat-hdr" id="rstHdr" onclick="toggleCat('rest')">
+        <div class="cat-ico">🌿</div>
+        <div class="cat-inf"><div class="cat-nm">一息・リラックス</div><div class="cat-sb" id="rstSb">猫・お風呂・就寝準備</div></div>
+        <div class="cat-dots" id="rstDots"></div><span class="cat-chev" id="rstChev">▾</span>
+      </div>
+      <div class="cat-body" id="rstBody"></div>
+    </div>
+  </div>
+
+  <!-- ══ ランダム気分転換 ══ -->
+  <div class="subsec" id="bonusSection" style="margin-top:4px;">
+    <div class="sec-lbl">✨ 今日のひと手間</div>
+    <div id="bonusCard"></div>
+  </div>
+  <div class="spacer"></div>
+</div>
+
+<!-- stats -->
+<div class="panel" id="statsPanel">
+  <div class="p-title">今週の記録</div>
+  <div class="week-row" id="weekRow"></div>
+  <div class="stat-grid" id="statGrid"></div>
+</div>
+
+<!-- settings -->
+<div class="panel" id="settingsPanel">
+  <div class="p-title">設定</div>
+  <div class="sg glass">
+    <div class="sg-ti">食事</div>
+    <div class="sg-row"><div><div class="sg-lbl">朝ごはん</div></div><input type="time" class="ti" id="t-breakfast" value="08:00" onchange="saveSets()"></div>
+    <div class="sg-row"><div><div class="sg-lbl">昼ごはん</div></div><input type="time" class="ti" id="t-lunch" value="12:30" onchange="saveSets()"></div>
+    <div class="sg-row"><div><div class="sg-lbl">夕食の準備開始</div><div class="sg-sub">「そろそろ台所へ」</div></div><input type="time" class="ti" id="t-dinner-prep" value="19:30" onchange="saveSets()"></div>
+    <div class="sg-row"><div><div class="sg-lbl">夕ごはん</div></div><input type="time" class="ti" id="t-dinner" value="20:00" onchange="saveSets()"></div>
+  </div>
+  <div class="sg glass">
+    <div class="sg-ti">からだを動かす</div>
+    <div class="sg-row"><div><div class="sg-lbl">散歩</div></div><input type="time" class="ti" id="t-walk" value="09:30" onchange="saveSets()"></div>
+    <div class="sg-row"><div><div class="sg-lbl">ストレッチ（昼）</div></div><input type="time" class="ti" id="t-stretch-day" value="15:00" onchange="saveSets()"></div>
+    <div class="sg-row"><div><div class="sg-lbl">ストレッチ（夜）</div></div><input type="time" class="ti" id="t-stretch-night" value="21:30" onchange="saveSets()"></div>
+  </div>
+  <div class="sg glass">
+    <div class="sg-ti">一息・リラックス</div>
+    <div class="sg-row"><div><div class="sg-lbl">猫タイム（朝）</div></div><input type="time" class="ti" id="t-cat-morning" value="07:45" onchange="saveSets()"></div>
+    <div class="sg-row"><div><div class="sg-lbl">猫タイム（夜）</div></div><input type="time" class="ti" id="t-cat-night" value="21:00" onchange="saveSets()"></div>
+    <div class="sg-row"><div><div class="sg-lbl">お風呂（朝）</div></div><input type="time" class="ti" id="t-bath-morning" value="06:30" onchange="saveSets()"></div>
+    <div class="sg-row"><div><div class="sg-lbl">お風呂（夕方）</div></div><input type="time" class="ti" id="t-bath-evening" value="18:30" onchange="saveSets()"></div>
+    <div class="sg-row"><div><div class="sg-lbl">お風呂（夜）</div></div><input type="time" class="ti" id="t-bath-night" value="21:00" onchange="saveSets()"></div>
+    <div class="sg-row"><div><div class="sg-lbl">就寝準備</div></div><input type="time" class="ti" id="t-sleep" value="22:00" onchange="saveSets()"></div>
+  </div>
+  <div class="sg glass" id="toggleGroup">
+    <div class="sg-ti" style="display:flex;justify-content:space-between;align-items:center;">
+      項目のオン／オフ
+      <button class="abtn" style="font-size:10px;padding:3px 10px;" onclick="toggleAllItems()">全切替</button>
+    </div>
+    <div id="itemToggles"></div>
+  </div>
+  <div class="sg glass">
+    <div class="sg-ti">通知 / データ</div>
+    <div class="sg-row"><div><div class="sg-lbl">ブラウザ通知（開いてる間）</div><div class="sg-sub">アプリを開いている間だけ通知</div></div><button class="abtn" id="notifBtn" onclick="reqNotif()">許可する</button></div>
+    <div class="sg-row"><div><div class="sg-lbl">プッシュ通知（常時）</div><div class="sg-sub">アプリを閉じていても通知が来る</div></div><button class="abtn" id="pushBtn" onclick="reqPush()">登録する</button></div>
+    <div class="sg-row"><div><div class="sg-lbl">今日の記録をリセット</div></div><button class="abtn" onclick="resetToday()">リセット</button></div>
+  </div>
+</div>
+
+
+<!-- ═══ NOTIFICATION PREVIEW MODAL ═══ -->
+<div class="notif-overlay" id="notifOverlay" onclick="closeNotifModal()"></div>
+<div class="notif-modal" id="notifModal">
+  <div class="nm-pill"></div>
+  <div class="nm-time" id="nmTime"></div>
+  <div class="nm-icon" id="nmIcon"></div>
+  <div class="nm-title" id="nmTitle"></div>
+  <div class="nm-msg"   id="nmMsg"></div>
+  <div class="nm-hint">← スキップ　　⏰ あとで　　できた →</div>
+  <div class="nm-btns">
+    <button class="nm-btn nm-skip"   id="nmSkipBtn">⏭ スキップ</button>
+    <button class="nm-btn nm-snooze" id="nmSnoozeBtn">⏰ あとで</button>
+    <button class="nm-btn nm-done"   id="nmDoneBtn">✅ できた</button>
+  </div>
+</div>
+
+</div><!-- /wrap -->
+
+<div class="bottom-nav">
+  <div class="nav-item active" id="nav-main"     onclick="switchP('main')"><span class="nav-icon">🏠</span><span class="nav-lbl">TODAY</span></div>
+  <div class="nav-item"        id="nav-stats"    onclick="switchP('stats')"><span class="nav-icon">📅</span><span class="nav-lbl">記録</span></div>
+  <div class="nav-item"        id="nav-settings" onclick="switchP('settings')"><span class="nav-icon">⚙️</span><span class="nav-lbl">設定</span></div>
+</div>
+
+<script>
+/* ════════════════════════════════════════════
+   SKY — pure CSS-variable based, no canvas RAF loop
+   Canvas is drawn ONCE per minute via drawSky()
+════════════════════════════════════════════ */
+const SKY = {
+  // isDark: true = white text, false = dark text
+  night:  {a:[8,5,28],    b:[22,12,60],   glow:null,              isDark:true,  stars:true,  hasMoon:true},
+  dawn:   {a:[45,18,65],  b:[190,90,130], glow:[255,130,100,0.25],isDark:true,  stars:true,  hasSun:true,  sunA:0.55},
+  morning:{a:[100,175,210],b:[200,230,220],glow:[255,230,160,0.20],isDark:false, stars:false, hasSun:true},
+  midday: {a:[70,150,215],b:[150,200,235],glow:[255,255,200,0.12],isDark:false, stars:false, hasSun:true},
+  evening:{a:[215,120,55],b:[235,165,85], glow:[255,170,80,0.30], isDark:false, stars:false, hasSun:true,  sunA:0.85},
+  dusk:   {a:[55,22,75],  b:[195,88,58],  glow:[200,100,60,0.28], isDark:true,  stars:true,  hasMoon:true},
+};
+
+function slot(h){
+  if(h>=4&&h<6)  return'dawn';
+  if(h>=6&&h<10) return'morning';
+  if(h>=10&&h<15)return'midday';
+  if(h>=15&&h<18)return'evening';
+  if(h>=18&&h<21)return'dusk';
+  return'night';
+}
+
+const GREETINGS={
+  dawn:   '夜明けですね。ゆっくりはじめましょう。',
+  morning:'おはようございます。今日もいい一日を。',
+  midday: 'お昼ですね。ちゃんと休めていますか？',
+  evening:'午後も後半。少し力を抜きましょう。',
+  dusk:   'お疲れさまです。今日の後半戦です。',
+  night:  'おやすみ前。ゆっくり休んでください。',
+};
+
+/* draw sky once, called each minute */
+function drawSky() {
+  try {
+    const cv = document.getElementById('sky');
+    if (!cv) return;
+    const cx = cv.getContext('2d');
+    const W = cv.width  = window.innerWidth;
+    const H = cv.height = window.innerHeight;
+    const now = new Date();
+    const h = now.getHours(), m = now.getMinutes();
+    const sl = slot(h);
+    const th = SKY[sl];
+
+    /* gradient */
+    const gr = cx.createLinearGradient(0,0,0,H);
+    gr.addColorStop(0, `rgb(${th.a[0]},${th.a[1]},${th.a[2]})`);
+    gr.addColorStop(1, `rgb(${th.b[0]},${th.b[1]},${th.b[2]})`);
+    cx.fillStyle = gr; cx.fillRect(0,0,W,H);
+
+    /* horizon glow */
+    if (th.glow) {
+      const [r,g,b,a] = th.glow;
+      const hg = cx.createRadialGradient(W/2,H*0.72,0,W/2,H*0.72,W*0.8);
+      hg.addColorStop(0, `rgba(${r},${g},${b},${a})`);
+      hg.addColorStop(1, 'rgba(0,0,0,0)');
+      cx.fillStyle = hg; cx.fillRect(0,0,W,H);
+    }
+
+    /* stars */
+    if (th.stars) {
+      const fade = sl==='dawn'?0.25:sl==='dusk'?0.5:0.95;
+      for (let i=0;i<90;i++) {
+        const sx = (Math.sin(i*127.1)*0.5+0.5)*W;
+        const sy = (Math.sin(i*311.7)*0.5+0.5)*H*0.68;
+        const sr = 0.4 + (Math.sin(i*53.3)*0.5+0.5)*1.3;
+        const sa = (Math.sin(i*79.1)*0.5+0.5)*0.75*fade;
+        cx.beginPath(); cx.arc(sx,sy,sr,0,Math.PI*2);
+        cx.fillStyle=`rgba(255,255,255,${sa.toFixed(3)})`; cx.fill();
+      }
+    }
+
+    /* sun */
+    if (th.hasSun) {
+      const pct = Math.max(0,Math.min(1,(h-4+m/60)/16));
+      const sx  = W*0.10 + W*0.80*pct;
+      const sy  = H*0.72 - Math.sin(pct*Math.PI)*H*0.58;
+      const sa  = th.sunA || 1.0;
+      const cg  = cx.createRadialGradient(sx,sy,0,sx,sy,100);
+      cg.addColorStop(0,`rgba(255,248,180,${(0.22*sa).toFixed(2)})`);
+      cg.addColorStop(1,'rgba(255,200,80,0)');
+      cx.fillStyle=cg; cx.fillRect(0,0,W,H);
+      const sg = cx.createRadialGradient(sx,sy,0,sx,sy,30);
+      sg.addColorStop(0,`rgba(255,252,210,${sa.toFixed(2)})`);
+      sg.addColorStop(0.6,`rgba(255,220,100,${(sa*0.8).toFixed(2)})`);
+      sg.addColorStop(1,'rgba(255,180,40,0)');
+      cx.beginPath(); cx.arc(sx,sy,30,0,Math.PI*2);
+      cx.fillStyle=sg; cx.fill();
+    }
+
+    /* moon */
+    if (th.hasMoon) {
+      const mp = ((h+18)%24)/24;
+      const mx = W*0.08 + W*0.84*mp;
+      const my = H*0.62 - Math.sin(mp*Math.PI)*H*0.54;
+      const mg = cx.createRadialGradient(mx,my,0,mx,my,26);
+      mg.addColorStop(0,'rgba(242,237,212,0.96)');
+      mg.addColorStop(0.6,'rgba(220,215,190,0.70)');
+      mg.addColorStop(1,'rgba(200,195,170,0)');
+      cx.beginPath(); cx.arc(mx,my,26,0,Math.PI*2);
+      cx.fillStyle=mg; cx.fill();
+      const ml = cx.createRadialGradient(mx,my,0,mx,my,72);
+      ml.addColorStop(0,'rgba(230,225,195,0.14)');
+      ml.addColorStop(1,'rgba(230,225,195,0)');
+      cx.fillStyle=ml; cx.fillRect(0,0,W,H);
+    }
+
+    /* light rays (morning/midday) */
+    if (sl==='morning'||sl==='midday') {
+      cx.save(); cx.globalAlpha=0.022;
+      for (let i=0;i<6;i++) {
+        cx.beginPath();
+        cx.moveTo(W/2,-50);
+        cx.lineTo(W/2-W*0.6+i*(W*0.24),H*1.1);
+        cx.lineTo(W/2-W*0.5+i*(W*0.24),H*1.1);
+        cx.closePath();
+        cx.fillStyle='rgba(255,255,200,1)'; cx.fill();
+      }
+      cx.restore();
+    }
+
+    /* clouds — deterministic so no random each draw */
+    const cloudData = [
+      [0.12,0.08,200,70],[0.42,0.14,160,55],[0.72,0.06,240,80],
+      [0.28,0.22,180,60],[0.62,0.18,200,65],[0.88,0.10,150,50],
+      [0.05,0.20,170,58]
+    ];
+    const cloudOff = (Date.now()/80000)%1; // very slow scroll
+    cloudData.forEach(([rx,ry,cw,ch]) => {
+      const cx_ = ((rx + cloudOff)%1.2 - 0.1)*W;
+      const cy_ = ry*H;
+      drawCloud(cx, cx_, cy_, cw, ch, th.isDark ? 0.07 : 0.20);
+    });
+
+    applyTheme(sl);
+  } catch(e) {
+    /* silently ignore canvas errors on restricted environments */
+  }
+}
+
+function drawCloud(cx, x, y, w, h, alpha) {
+  if (alpha <= 0) return;
+  cx.save(); cx.globalAlpha = Math.min(alpha, 0.85);
+  for (let i=0;i<4;i++) {
+    const bx = x+(i/4)*w, by = y+Math.sin(i/4*Math.PI)*(-h*0.3);
+    const br = h*0.4+Math.sin(i*1.3)*h*0.15;
+    const cg = cx.createRadialGradient(bx,by,0,bx,by,br);
+    cg.addColorStop(0,'rgba(255,255,255,0.92)');
+    cg.addColorStop(1,'rgba(255,255,255,0)');
+    cx.beginPath(); cx.arc(bx,by,br,0,Math.PI*2);
+    cx.fillStyle=cg; cx.fill();
+  }
+  cx.restore();
+}
+
+/* Theme CSS variables */
+function applyTheme(sl) {
+  const dark = SKY[sl].isDark;
+  const r = document.documentElement;
+  if (dark) {
+    r.style.setProperty('--cat-line','rgba(255,255,255,0.45)');
+    r.style.setProperty('--tx',      'rgba(255,255,255,0.95)');
+    r.style.setProperty('--tx2',     'rgba(255,255,255,0.62)');
+    r.style.setProperty('--tx3',     'rgba(255,255,255,0.40)');
+    r.style.setProperty('--card-bg', 'rgba(255,255,255,0.13)');
+    r.style.setProperty('--card-bd', 'rgba(255,255,255,0.22)');
+    r.style.setProperty('--glass-bg','rgba(255,255,255,0.13)');
+    r.style.setProperty('--glass-bd','rgba(255,255,255,0.22)');
+    r.style.setProperty('--prog-bg', 'rgba(0,0,0,0.28)');
+    r.style.setProperty('--nav-bg',  'rgba(0,0,0,0.34)');
+    r.style.setProperty('--sp-track','rgba(255,255,255,0.15)');
+    r.style.setProperty('--shadow',  '0 1px 10px rgba(0,0,0,0.40)');
+  } else {
+    r.style.setProperty('--cat-line','rgba(12,12,80,0.30)');
+    r.style.setProperty('--tx',      'rgba(12,12,32,0.92)');
+    r.style.setProperty('--tx2',     'rgba(12,12,32,0.58)');
+    r.style.setProperty('--tx3',     'rgba(12,12,32,0.36)');
+    r.style.setProperty('--card-bg', 'rgba(255,255,255,0.96)');
+    r.style.setProperty('--card-bd', 'rgba(12,12,32,0.14)');
+    r.style.setProperty('--glass-bg','rgba(255,255,255,0.94)');
+    r.style.setProperty('--glass-bd','rgba(12,12,32,0.14)');
+    r.style.setProperty('--prog-bg', 'rgba(240,236,228,0.90)');
+    r.style.setProperty('--nav-bg',  'rgba(255,255,255,0.80)');
+    r.style.setProperty('--sp-track','rgba(12,12,32,0.12)');
+    r.style.setProperty('--shadow',  '0 1px 8px rgba(0,0,0,0.14)');
+  }
+}
+
+/* draw once on load, then every 60s */
+window.addEventListener('load', function(){ try{drawSky();}catch(e){} });
+window.addEventListener('resize', function(){ try{drawSky();}catch(e){} });
+setInterval(function(){ try{drawSky();}catch(e){} }, 60000);
+
+/* ════════════════════════════════════════════
+   MESSAGES
+════════════════════════════════════════════ */
+const MSGS = {
+  walk:           {dawn:'夜明けの空気は特別です。そっと外へ。',morning:'朝日を浴びながら歩くと、体内時計がリセットされます。',midday:'画面から目を離して、青空の下へ出ましょう。',evening:'夕焼けが見えるかも。仕事の切り替えに最適です。',dusk:'夕暮れの中を歩くと、今日一日が振り返れます。',night:'夜風に当たるだけでも気持ちが変わります。'},
+  'stretch-day':  {morning:'朝のストレッチで今日の体の準備を整えて。',midday:'座りっぱなしの体に、5分だけ投資しましょう。',evening:'肩甲骨を動かすと、夕方の頭痛が和らぎます。',default:'5分だけ。それで肩の重さが変わります。'},
+  'stretch-night':{night:'今日一日よく働きました。体を労わってあげて。',default:'YouTube動画でも10分だけ。明日の体が変わります。'},
+  'cat-morning':  {dawn:'まだ眠そうな猫の顔を見るだけで、心が落ち着きます。',morning:'猫との朝は、一日のいちばん良いスタートです。',default:'猫はいつもそこにいます。少しだけ一緒に過ごして。'},
+  'cat-night':    {dusk:'今日も一日お疲れさま。猫がそばにいます。',night:'ゴロゴロと一緒に横になると、自然と眠気が来ます。',default:'猫と過ごす5分は、最高のリカバリーです。'},
+  bath:           {morning:'朝風呂でシャキッと。一日のスイッチを入れて。',evening:'夕方の湯船で、仕事モードをOFFにしましょう。',dusk:'湯船に浸かりながら、今日の小さな良いことを思い出して。',night:'入浴後1〜2時間で眠気のピークが来ます。',default:'お湯に浸かると、体の緊張がほぐれていきます。'},
+  sleep:          {dusk:'そろそろ今日の終わりを意識しはじめましょう。',night:'PCを閉じると、今日が終わります。よく頑張りました。',default:'明日のために、今夜は早めに休みましょう。'},
+  'dinner-prep':  {default:'この通知が来たら台所へ！夜ごはんを大事に。',dusk:'夕暮れどき。冷蔵庫を開けて、今夜を決めましょう。'},
+  breakfast:      {dawn:'一日のエンジンをかけるために、まず食べましょう。',morning:'朝ごはんなしで仕事を始めると、集中力が続きません。',default:'PCを開く前に、まず食べること。'},
+  lunch:          {midday:'席を立って、ちゃんとお昼を食べましょう。',default:'昼食をスキップすると、夕方の判断力が下がります。'},
+  dinner:         {dusk:'一日の締めくくりに、ちゃんと食べましょう。',night:'しっかり食べてから、今夜の残り時間を過ごして。',default:'ゆっくり食べると、体が喜びます。'},
+};
+const MILESTONES={
+  25:{variants:[
+    {e:'🌱',t:'いいスタート！',   m:'小さな一歩が積み重なります。'},
+    {e:'🌤️',t:'動き出しましたね',  m:'今日も体が動いています。'},
+    {e:'🐾',t:'その調子！',        m:'続けることが大切です。'},
+  ]},
+  50:{variants:[
+    {e:'🌿',t:'折り返し！',        m:'半分できました。今日のあなたはよく動いています。'},
+    {e:'⚡',t:'いいペースです',    m:'今日は調子がいいですね。'},
+    {e:'🌊',t:'流れに乗ってます',  m:'このまま続けていきましょう。'},
+  ]},
+  75:{variants:[
+    {e:'🌸',t:'もうすぐ！',        m:'体が喜んでいます。あとひと息。'},
+    {e:'🌻',t:'素晴らしい！',      m:'今日はとてもよくできています。'},
+    {e:'✨',t:'輝いてます',        m:'残りわずか。このまま行きましょう。'},
+  ]},
+  100:{variants:[
+    {e:'🎉',t:'今日も完璧！',      m:'全部できました。おつかれさまでした。'},
+    {e:'🏆',t:'最高の一日！',      m:'あなたは今日、自分をちゃんと大切にしました。'},
+    {e:'🌈',t:'よく頑張りました',  m:'体も心も喜んでいます。ゆっくり休んでください。'},
+    {e:'🐱',t:'猫も喜んでいます！',m:'きっと今夜はよく眠れます。'},
+  ]},
+};
+
+function getMsg(id, sl) {
+  if (id==='bath'||id==='bath-morning'||id==='bath-evening'||id==='bath-night'||id==='bath-night-tub') {
+    const t={morning:'morning',evening:'evening',night:'night',split:'night','bath-morning':'morning','bath-evening':'evening','bath-night':'night','bath-night-tub':'night'};
+    return (MSGS.bath[t[bath]]||MSGS.bath.default);
+  }
+  if (id==='bath-morning-shower') {
+    return '昨夜湯船済み。髪と体をさっと洗うだけ。10〜15分で完了。';
+  }
+  const m=MSGS[id]||{};
+  return m[sl]||m.default||'ひと息いれましょう。';
+}
+
+/* ════════════════════════════════════════════
+   STATE
+════════════════════════════════════════════ */
+let bath='none', dayMode='home', states={}, disabledIds=[], expandedCat=null, expandedItem=null, prevPct=0;
+let sets={
+  't-breakfast':'08:00','t-lunch':'12:30','t-dinner-prep':'19:30','t-dinner':'20:00',
+  't-walk':'09:30','t-stretch-day':'15:00','t-stretch-night':'21:30',
+  't-cat-morning':'07:45','t-cat-night':'21:00',
+  't-bath-morning':'06:30','t-bath-evening':'18:30','t-bath-night':'21:00',
+  't-sleep':'22:00',
+};
+const PT  = s=>{const[h,m]=s.split(':').map(Number);return h*60+m;};
+const NM  = ()=>{const n=new Date();return n.getHours()*60+n.getMinutes();};
+const TDK = ()=>{const d=new Date();return`${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;};
+
+function getMeals(){
+  return[{id:'breakfast',icon:'🍳',title:'朝ごはん',tk:'t-breakfast'},
+         {id:'lunch',    icon:'🥗',title:'昼ごはん',tk:'t-lunch'},
+         {id:'dinner',   icon:'🍽️',title:'夕ごはん',tk:'t-dinner'}]
+  .map(r=>({...r,time:sets[r.tk]}));
+}
+function getCareItems(){
+  const sl=slot(new Date().getHours());
+  const isOut = dayMode==='out';
+  const bk=bath==='morning'?'t-bath-morning':bath==='evening'?'t-bath-evening':'t-bath-night';
+  const bathTitle=bath==='morning'?'朝風呂':bath==='evening'?'夕方に湯船':'夜風呂';
+  const move=[
+    {id:'walk',         cat:'move',icon:'🚶',title:'散歩・外気タイム',tk:'t-walk'},
+    {id:'stretch-day',  cat:'move',icon:'💪',title:'ストレッチ（昼）', tk:'t-stretch-day'},
+    {id:'stretch-night',cat:'move',icon:'🧘',title:'ストレッチ（夜）', tk:'t-stretch-night'},
+  ];
+  // Build bath entries based on selection
+  const bathEntries = [];
+  if(bath==='morning'){
+    bathEntries.push({id:'bath-morning',cat:'rest',icon:'🛁',title:'朝風呂',tk:'t-bath-morning'});
+  } else if(bath==='evening'){
+    bathEntries.push({id:'bath-evening',cat:'rest',icon:'🛁',title:'夕方に湯船',tk:'t-bath-evening'});
+  } else if(bath==='night'){
+    bathEntries.push({id:'bath-night',cat:'rest',icon:'🛁',title:'夜風呂',tk:'t-bath-night'});
+  } else if(bath==='split'){
+    // 朝シャン(朝) + 夜風呂(夜) の2つ
+    bathEntries.push({id:'bath-morning-shower',cat:'rest',icon:'🚿',title:'朝シャワー',tk:'t-bath-morning'});
+    bathEntries.push({id:'bath-night-tub',     cat:'rest',icon:'🛁',title:'夜風呂（湯船）',tk:'t-bath-night'});
+  }
+
+  const rest=[
+    {id:'cat-morning',cat:'rest',icon:'🐱',title:'猫タイム（朝）',tk:'t-cat-morning'},
+    {id:'cat-night',  cat:'rest',icon:'🐱',title:'猫タイム（夜）',tk:'t-cat-night'},
+    {id:'dinner-prep',cat:'rest',icon:'🍲',title:'夕食の準備',    tk:'t-dinner-prep'},
+    ...bathEntries,
+    {id:'sleep',      cat:'rest',icon:'🌙',title:'就寝準備',      tk:'t-sleep'},
+  ];
+  // Sort all items by time
+  // 外出モード: 夕方以降のケアのみ（夜ケアを守る）
+  const outAllowIds=['cat-night','dinner-prep','bath','bath-night','bath-night-tub','sleep','stretch-night'];
+  const careFiltered = isOut
+    ? [...move,...rest].filter(function(r){ return outAllowIds.indexOf(r.id)!==-1; })
+    : [...move,...rest];
+  const allCare=careFiltered.map(r=>({...r,time:sets[r.tk],msg:getMsg(r.id,sl)}));
+  allCare.sort((a,b)=>PT(a.time)-PT(b.time));
+  return allCare;
+}
+function allItems(){return[...getMeals(),...getCareItems()];}
+function activeItems(){return allItems().filter(function(r){return disabledIds.indexOf(r.id)===-1;});}
+
+/* ════════════════════════════════════════════
+   PERSIST
+════════════════════════════════════════════ */
+function load(){
+  try{const s=localStorage.getItem('osh_sets');if(s)sets={...sets,...JSON.parse(s)};}catch(e){}
+  try{const b=localStorage.getItem('osh_bath');if(b)bath=b;}catch(e){}
+  try{const dm=localStorage.getItem('osh_daymode');if(dm)dayMode=dm;}catch(e){}
+  try{const d=localStorage.getItem('osh_states_'+TDK());if(d)states=JSON.parse(d);}catch(e){}
+  try{const di=localStorage.getItem('osh_disabled');if(di)disabledIds=JSON.parse(di);}catch(e){}
+}
+function saveSets(){Object.keys(sets).forEach(k=>{const el=document.getElementById(k);if(el)sets[k]=el.value;});localStorage.setItem('osh_sets',JSON.stringify(sets));render();}
+function saveStates(){localStorage.setItem('osh_states_'+TDK(),JSON.stringify(states));}
+function saveDisabled(){localStorage.setItem('osh_disabled',JSON.stringify(disabledIds));}
+function toggleItem_enabled(id){
+  var idx=disabledIds.indexOf(id);
+  if(idx>-1)disabledIds.splice(idx,1);
+  else disabledIds.push(id);
+  saveDisabled();renderSettingsToggles();render();
+}
+function syncSetUI(){Object.keys(sets).forEach(k=>{const el=document.getElementById(k);if(el)el.value=sets[k];});if(Notification.permission==='granted'){const b=document.getElementById('notifBtn');if(b)b.textContent='✅ 許可済み';}}
+function resetToday(){if(!confirm('今日の記録をリセットしますか？'))return;states={};prevPct=0;saveStates();render();}
+
+/* ════════════════════════════════════════════
+   SWIPE ENGINE
+════════════════════════════════════════════ */
+const THRESH=65;
+function attachSwipe(el,id){
+  let sx=0,sy=0,dx=0,drag=false,lpt=null;
+  function start(x,y){sx=x;sy=y;dx=0;drag=false;lpt=setTimeout(()=>snoozeItem(id),650);}
+  function move(x,y){
+    dx=x-sx;const dy=Math.abs(y-sy);
+    if(Math.abs(dx)>8||dy>8){clearTimeout(lpt);lpt=null;}
+    if(Math.abs(dx)>10&&dy<35){
+      drag=true;
+      const rot=dx*0.04;
+      el.style.transform=`translateX(${dx}px) rotate(${rot}deg)`;
+      el.style.transition='none';
+      el.classList.toggle('td',dx>10);
+      el.classList.toggle('ts',dx<-10);
+      el.style.opacity=String(1-Math.min(Math.abs(dx)/THRESH,1)*0.12);
+      // show reveal on parent card-outer
+      const outer=el.parentElement;
+      if(outer){
+        outer.classList.toggle('swiping-done', dx>10);
+        outer.classList.toggle('swiping-skip', dx<-10);
+      }
+    }
+  }
+  function end(){
+    clearTimeout(lpt);lpt=null;
+    el.classList.remove('td','ts');
+    const outer=el.parentElement;
+    if(outer){outer.classList.remove('swiping-done','swiping-skip');}
+    el.style.transition='transform 0.28s cubic-bezier(0.25,1,0.5,1),opacity 0.22s';
+    if(drag){
+      if(dx>THRESH){
+        el.style.transform=`translateX(${window.innerWidth}px) rotate(12deg)`;el.style.opacity='0';
+        doFlash('d');setTimeout(()=>markItem(id,'done'),220);
+      } else if(dx<-THRESH){
+        el.style.transform=`translateX(-${window.innerWidth}px) rotate(-12deg)`;el.style.opacity='0';
+        doFlash('s');setTimeout(()=>markItem(id,'skip'),220);
+      } else {
+        el.style.transform='';el.style.opacity='1';
+      }
+    } else {
+      el.style.transform='';el.style.opacity='1';
+    }
+    drag=false;
+  }
+  el.addEventListener('touchstart',e=>{const t=e.touches[0];start(t.clientX,t.clientY);},{passive:true});
+  el.addEventListener('touchmove', e=>{const t=e.touches[0];move(t.clientX,t.clientY);},{passive:true});
+  el.addEventListener('touchend',  ()=>end());
+  // Mouse: attach to el only, not window (prevents closing other cards)
+  el.addEventListener('mousedown', e=>{e.preventDefault();start(e.clientX,e.clientY);});
+  el.addEventListener('mousemove', e=>{if(e.buttons===1)move(e.clientX,e.clientY);});
+  el.addEventListener('mouseup',   ()=>end());
+  el.addEventListener('mouseleave',()=>{if(drag)end();});
+}
+
+function doFlash(t){
+  const el=document.getElementById('flash');
+  const ic=document.getElementById('flashIco');
+  el.className='flash '+(t==='d'?'fd':'fs')+' show';
+  ic.textContent=t==='d'?'✅':'⏭';
+  setTimeout(()=>el.classList.remove('show'),300);
+}
+
+/* ════════════════════════════════════════════
+   RENDER
+════════════════════════════════════════════ */
+function render(){
+  const nm=NM(), sl=slot(new Date().getHours());
+  renderMeals(nm,sl);
+  const items=getCareItems();
+  renderCat('mov','move',items.filter(r=>r.cat==='move'),nm);
+  renderCat('rst','rest',items.filter(r=>r.cat==='rest'),nm);
+  renderAlert(items);
+  renderProg();
+  renderBonus();
+}
+
+function buildCard(r,nm){
+  const st=states[r.id];
+  const isUp=!st&&Math.abs(PT(r.time)-nm)<=20&&PT(r.time)>=nm-5;
+  const isExp=expandedItem===r.id;
+  let badge='';
+  if(st==='done') badge='<span class="badge b-done">✅ できた</span>';
+  else if(st==='skip') badge='<span class="badge b-skip">✖️ スキップ</span>';
+  else if(st==='snooze') badge='<span class="badge b-snooze">⏰ スヌーズ中</span>';
+  var btns='';
+  var rid=r.id;
+  if(st){
+    btns='<button class="ebtn eb-undo" data-id="'+rid+'" data-act="undo">↩ 取り消す</button>';
+  } else {
+    btns='<button class="ebtn eb-skip"   data-id="'+rid+'" data-act="skip">⏭ スキップ</button>'
+        +'<button class="ebtn eb-snooze" data-id="'+rid+'" data-act="snooze">⏰ あとで</button>'
+        +'<button class="ebtn eb-done"   data-id="'+rid+'" data-act="done">✅ できた</button>';
+  }
+  const outer=document.createElement('div');
+  outer.className='card-outer';
+  outer.innerHTML=`<div class="reveal-done"><div class="rv-icon">✅</div><div class="rv-lbl">できた</div></div>
+    <div class="reveal-skip"><div class="rv-lbl">スキップ</div><div class="rv-icon">⏭</div></div>`;
+  const card=document.createElement('div');
+  card.className=`swipe-card glass${st?' state-'+st:''}${isUp?' upcoming':''}`;
+  card.innerHTML=`<div class="c-top">
+    <div class="c-icon">${r.icon}</div>
+    <div class="c-body">
+      <div class="c-title">${r.title}</div>
+      ${r.msg?`<div class="c-msg">${r.msg}</div>`:''}
+      <div class="c-time">${r.time} ごろ</div>
+    </div>
+    <div class="c-right">${badge}</div>
+  </div>
+  <div class="c-expand${isExp?' open':''}">
+    <div class="exp-hint">← スキップ　⏰ あとで　できた →</div>
+    <div class="exp-btns">${btns}</div>
+  </div>`;
+  card.addEventListener('click',function(e){
+    var btn=e.target.closest('[data-act]');
+    if(btn){
+      e.stopPropagation();
+      var id=btn.getAttribute('data-id');
+      var act=btn.getAttribute('data-act');
+      if(act==='done')  markItem(id,'done');
+      else if(act==='skip')  markItem(id,'skip');
+      else if(act==='snooze') snoozeItem(id);
+      else if(act==='undo')  markItem(id,null);
+      return;
+    }
+    expandedItem=expandedItem===r.id?null:r.id;render();
+  });
+  attachSwipe(card,r.id);
+  outer.appendChild(card);
+  return outer;
+}
+
+function renderMeals(nm,sl){
+  const el=document.getElementById('mealCards');el.innerHTML='';
+  getMeals().forEach(r=>{r.msg=getMsg(r.id,sl);el.appendChild(buildCard(r,nm));});
+}
+
+function renderCat(prefix,catId,items,nm){
+  const hdr=document.getElementById(prefix+'Hdr');
+  const body=document.getElementById(prefix+'Body');
+  const dots=document.getElementById(prefix+'Dots');
+  const sb=document.getElementById(prefix+'Sb');
+  const chev=document.getElementById(prefix+'Chev');
+  const isOpen=expandedCat===catId;
+  dots.innerHTML=items.map(r=>`<div class="cdot${states[r.id]?' '+states[r.id]:''}"></div>`).join('');
+  const dn=items.filter(r=>states[r.id]==='done').length;
+  sb.textContent=dn>0?`${dn}/${items.length} 完了`:items.map(r=>r.title).join('・');
+  hdr.classList.toggle('open',isOpen);
+  chev.style.transform=isOpen?'rotate(180deg)':'';
+  body.innerHTML='';body.classList.toggle('open',isOpen);
+  if(!isOpen)return;
+  items.forEach(r=>body.appendChild(buildCard(r,nm)));
+}
+
+function renderAlert(items){
+  const h=new Date().getHours();
+  const moveLeft=items.filter(r=>r.cat==='move'&&!states[r.id]);
+  const dinnerDone=states['dinner']==='done';
+  const dinnerSkip=states['dinner']==='skip';
+  let msg='', icon='⚠️';
+  if(h>=21&&!dinnerDone&&!dinnerSkip){
+    const lateOpts=[
+      'もう'+h+'時！今からならスープかお茶漬けがおすすめ 🍵',
+      h+'時でも食べないよりまし。軽めに済ませよう 🌙',
+      '遅くなってもOK。今夜は最低限お腹に何か入れて',
+    ];
+    msg=lateOpts[Math.floor(Math.random()*lateOpts.length)]; icon='🍽️';
+  } else if(h>=16&&moveLeft.length===items.filter(r=>r.cat==='move').length){
+    msg='今日まだ体を動かせていません。5分だけでも◎';
+  } else if(h>=20&&items.find(r=>r.id==='cat-night'&&!states[r.id])){
+    msg='猫タイム（夜）がまだです。少し一緒に過ごして。';
+  }
+  const ab=document.getElementById('alertBanner');
+  ab.classList.toggle('hidden',!msg);
+  if(msg){
+    document.getElementById('alertMsg').textContent=msg;
+    const iconEl=ab.querySelector('span');
+    if(iconEl)iconEl.textContent=icon;
+  }
+}
+
+// progress messages: time-of-day aware
+function getProgMsg(mealDone, careDone, careTotal) {
+  const h = new Date().getHours();
+  const isEarlyMorning = h < 10;
+  const isMorning      = h >= 10 && h < 14;
+  const isAfternoon    = h >= 14 && h < 18;
+  const isEvening      = h >= 18 && h < 22;
+  const isNight        = h >= 22;
+  const total          = mealDone + careDone;
+
+  if (total === 0) {
+    if (isEarlyMorning) return '今日もはじまりました 🌅';
+    if (isMorning)      return '午前中、どんな調子ですか？';
+    if (isAfternoon)    return '今日の調子はどうですか？';
+    if (isEvening)      return 'これからでも大丈夫 🌿';
+    return 'ゆっくりでいいです 🌙';
+  }
+  if (mealDone === 3 && careDone >= careTotal * 0.7) {
+    if (isEvening || isNight) return '今日もよく頑張りました 🌸';
+    return '絶好調ですね ✨';
+  }
+  if (mealDone === 3) {
+    return 'ちゃんと食べてる ✨';
+  }
+  if (mealDone >= 1 && careDone >= 3) {
+    return '体を労われてます 🌿';
+  }
+  if (mealDone >= 1) {
+    if (isEarlyMorning || isMorning) return 'いい朝のスタート 👍';
+    return 'いい感じです 👍';
+  }
+  if (careDone >= 3) return '体を動かせてますね 💪';
+  if (total >= 1)    return 'その調子 🌱';
+  return '今日もスタート 🌅';
+}
+function renderProg(){
+  const meals    = getMeals().filter(function(r){return disabledIds.indexOf(r.id)===-1;});
+  const careAll  = getCareItems().filter(function(r){return disabledIds.indexOf(r.id)===-1;});
+  const mealDone = meals.filter(r=>states[r.id]==='done').length;
+  const careDone = careAll.filter(r=>states[r.id]==='done').length;
+  const mealPct  = Math.round(mealDone/3*100);
+  const carePct  = careAll.length?Math.round(careDone/careAll.length*100):0;
+
+  document.getElementById('spMeal').style.width  = mealPct+'%';
+  document.getElementById('spCare').style.width  = carePct+'%';
+  document.getElementById('spMealCnt').textContent = `${mealDone}/3`;
+  document.getElementById('spCareCnt').textContent = `${careDone}/${careAll.length}`;
+
+  // overall count for header
+  const totalDone = mealDone + careDone;
+  const totalAll  = 3 + careAll.length;
+  document.getElementById('spCnt').textContent = `${totalDone}/${totalAll}`;
+
+  // message
+  document.getElementById('spMsg').textContent = getProgMsg(mealDone, careDone, careAll.length);
+
+  // milestones (based on total)
+  const pct = Math.round(totalDone/totalAll*100);
+  [25,50,75,100].forEach(m=>{if(pct>=m&&prevPct<m)showMilestone(m);});
+  prevPct = pct;
+}
+
+/* ════════════════════════════════════════════
+   ACTIONS
+════════════════════════════════════════════ */
+function markItem(id,val){
+  if(val===null){ delete states[id]; } else { states[id]=val; }
+  expandedItem=null;
+  saveStates();
+  render();
+  if(val==='done'){
+    const meals=getMeals(), care=getCareItems();
+    const md=meals.filter(r=>states[r.id]==='done').length;
+    const cd=care.filter(r=>states[r.id]==='done').length;
+    const total=md+cd;
+    const h=new Date().getHours();
+    let pool;
+    if(total<=2)       pool=['いいね！','よし！','ナイス！'];
+    else if(total<=5)  pool=['その調子！','順調です！','いい感じ！'];
+    else if(total<=8)  pool=['すごい！','よく動いてます！','絶好調！'];
+    else               pool=['完璧です！','今日は最高！','やり遂げた！'];
+    if(h<10) pool.push('いい朝！');
+    if(h>=21) pool.push('夜もお疲れさま 🌙');
+    showToast('✅', pool[Math.floor(Math.random()*pool.length)]);
+  }
+  if(val==='skip'){
+    const MEAL_ALT={
+      'breakfast':['バナナだけでも食べてみて 🍌','プロテインだけでもOK 💪','ヨーグルト1個だけでも 🥛','クラッカー数枚だけでもいいから'],
+      'lunch':    ['コンビニのおにぎり1個でも 🍙','10分席を離れてなにか食べて','スープだけでも飲もう 🍜'],
+      'dinner':   ['スープだけでもいいから飲もう 🍵','今からでも遅くない。軽く食べて 🌙','お味噌汁だけでも体が喜びます','バナナ＋牛乳だけでも栄養になる 🍌'],
+      'dinner-prep':['デリバリーでもOK。今夜は食べることが大事','何か食べなきゃという気持ちだけで正解 👍'],
+    };
+    const alt=MEAL_ALT[id];
+    if(alt){
+      setTimeout(()=>showToast('🍽️',alt[Math.floor(Math.random()*alt.length)]),400);
+    } else {
+      const skipMsgs=['いまはそれでいい。無理しないで 🌿','疲れてない？少し休んでも大丈夫 ☁️','スキップも選択のひとつ。自分を責めないで','今日できなくても、また明日 🌱','ゆっくりいこう。全部やらなくていい'];
+      showToast('🌿',skipMsgs[Math.floor(Math.random()*skipMsgs.length)]);
+    }
+  }
+  if(val===null)  showToast('↩','取り消しました');
+}
+const snoozeTmr={};
+function snoozeItem(id){
+  states[id]='snooze';expandedItem=null;saveStates();render();
+  showToast('⏰','30分後に再おしらせします');
+  clearTimeout(snoozeTmr[id]);
+  snoozeTmr[id]=setTimeout(()=>{
+    if(states[id]==='snooze'){delete states[id];saveStates();render();
+      const r=allItems().find(i=>i.id===id);
+      if(r){showToast(r.icon,'もう一度: '+r.title);
+        if(Notification.permission==='granted')new Notification(`⏰ ${r.icon} ${r.title}`,{body:'スヌーズから再おしらせ'});}
+    }
+  },30*60*1000);
+}
+function toggleCat(id){expandedCat=expandedCat===id?null:id;render();}
+function setDayMode(v){
+  dayMode=v; localStorage.setItem('osh_daymode',v);
+  document.querySelectorAll('[data-mode]').forEach(function(el){
+    el.classList.toggle('active', el.getAttribute('data-mode')===v);
+  });
+  var label = v==='out' ? '🚶 外出モード（夜のケアのみ）' : '🏠 おうちモード（全項目）';
+  showToast(v==='out'?'🚶':'🏠', label);
+  render();
+}
+function setBath(v){
+  bath=v;localStorage.setItem('osh_bath',v);
+  document.querySelectorAll('.bath-chip').forEach(el=>el.classList.toggle('active',el.dataset.v===v));
+  const L={none:'シャワーのみ',morning:'🛁 朝風呂',evening:'🛁 夕方湯船',night:'🛁 夜風呂',split:'🛁 夜風呂＋朝シャン'};
+  showToast('🛁',L[v]+'に設定しました');render();
+}
+
+/* ════════════════════════════════════════════
+   MILESTONE
+════════════════════════════════════════════ */
+let mpT=null;
+function showMilestone(pct){
+  const ms=MILESTONES[pct];if(!ms)return;
+  const m=ms.variants[Math.floor(Math.random()*ms.variants.length)];
+  document.getElementById('mpEm').textContent=m.e;
+  document.getElementById('mpTi').textContent=m.t;
+  document.getElementById('mpMs').textContent=m.m;
+  const p=document.getElementById('mpop');p.classList.add('show');
+  clearTimeout(mpT);mpT=setTimeout(()=>p.classList.remove('show'),3500);
+}
+
+/* ════════════════════════════════════════════
+   CLOCK
+════════════════════════════════════════════ */
+function updateClock(){
+  const now=new Date(),days=['日','月','火','水','木','金','土'];
+  const sl=slot(now.getHours());
+  document.getElementById('clock').textContent=`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+  document.getElementById('appDate').textContent=`${now.getMonth()+1}月${now.getDate()}日（${days[now.getDay()]}）`;
+  document.getElementById('greeting').textContent=GREETINGS[sl];
+}
+
+/* ════════════════════════════════════════════
+   NOTIFICATIONS
+════════════════════════════════════════════ */
+let notified=[];
+function checkNotif(){
+  if(Notification.permission!=='granted')return;
+  const nm=NM(),sl=slot(new Date().getHours());
+  activeItems().forEach(r=>{
+    const key=TDK()+'-'+r.id;
+    if(PT(r.time)===nm&&!notified.has(key)&&states[r.id]!=='done'&&states[r.id]!=='skip'){
+      notified.add(key);
+      new Notification(`${r.icon} ${r.title}`,{body:r.msg||getMsg(r.id,sl),tag:r.id});
+      showToast(r.icon,r.title);
+    }
+  });
+}
+function reqNotif(){
+  if(!('Notification' in window)){showToast('📵','このブラウザは通知非対応です');return;}
+  Notification.requestPermission().then(function(p){
+    var b=document.getElementById('notifBtn');
+    if(p==='granted'){
+      if(b)b.textContent='✅ 許可済み';
+      showToast('🔔','ブラウザ通知を許可しました。アプリを開いている間、通知が来ます。');
+    } else if(p==='denied'){
+      showToast('📵','通知がブロックされています。iPhoneの設定 → Safari → 通知 から許可してください。');
+    }
+  });
+}
+function reqPush(){
+  if(!('serviceWorker' in navigator)||!('PushManager' in window)){
+    showToast('📱','ホーム画面に追加したアプリでのみ使えます（iOS 16.4以降）');
+    return;
+  }
+  Notification.requestPermission().then(function(p){
+    if(p!=='granted'){showToast('📵','まず「ブラウザ通知を許可する」を押してください');return;}
+    subscribePush().then(function(ok){
+      if(ok){var b=document.getElementById('pushBtn');if(b)b.textContent='✅ 登録済み';}
+    });
+  });
+}
+
+/* ════════════════════════════════════════════
+   PANELS / STATS
+════════════════════════════════════════════ */
+function switchP(p){
+  document.getElementById('mainPanel').style.display=p==='main'?'block':'none';
+  document.getElementById('statsPanel').classList.toggle('visible',p==='stats');
+  document.getElementById('settingsPanel').classList.toggle('visible',p==='settings');
+  ['main','stats','settings'].forEach(id=>document.getElementById('nav-'+id).classList.toggle('active',id===p));
+  if(p==='stats')    renderStats();
+  if(p==='settings') renderSettingsToggles();
+}
+function renderStats(){
+  const days=['日','月','火','水','木','金','土'],today=new Date();
+  const wr=document.getElementById('weekRow');wr.innerHTML='';
+  let tD=0,tS=0,tT=0;
+  for(let i=6;i>=0;i--){
+    const d=new Date(today);d.setDate(d.getDate()-i);
+    const key=`${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
+    const raw=localStorage.getItem('osh_states_'+key);
+    const st=raw?JSON.parse(raw):{};
+    const dn=Object.values(st).filter(v=>v==='done').length;
+    const sk=Object.values(st).filter(v=>v==='skip').length;
+    tD+=dn;tS+=sk;tT+=dn+sk;
+    wr.innerHTML+=`<div class="wcell"><div class="wc-lbl">${days[d.getDay()]}</div><div class="wc-dot${i===0?' now':dn+sk>0?' has':''}">${dn>0?dn:'—'}</div></div>`;
+  }
+  const all=allItems(),todayDone=Object.values(states).filter(v=>v==='done').length;
+  document.getElementById('statGrid').innerHTML=`
+    <div class="sbox glass"><div class="sbox-ti">今週の完了</div><div class="sbox-v">${tD}</div><div class="sbox-s">ケアアクション</div></div>
+    <div class="sbox glass"><div class="sbox-ti">今日の完了</div><div class="sbox-v">${todayDone}</div><div class="sbox-s">/ ${all.length} 項目</div></div>
+    <div class="sbox glass"><div class="sbox-ti">今週スキップ</div><div class="sbox-v">${tS}</div><div class="sbox-s">回</div></div>
+    <div class="sbox glass"><div class="sbox-ti">達成率</div><div class="sbox-v">${tT?Math.round(tD/tT*100):0}<span style="font-size:15px">%</span></div><div class="sbox-s">今週</div></div>`;
+}
+
+/* ════════════════════════════════════════════
+   TOAST
+════════════════════════════════════════════ */
+let toastT=null;
+function showToast(icon,msg){
+  document.getElementById('ti').textContent=icon+' ';
+  document.getElementById('tm').textContent=msg;
+  const t=document.getElementById('toast');t.classList.add('show');
+  if(toastT)clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),2000);
+}
+
+/* ════════════════════════════════════════════
+   INIT
+════════════════════════════════════════════ */
+load();
+syncSetUI();
+document.querySelectorAll('.bath-chip').forEach(el=>el.classList.toggle('active',el.dataset.v===bath));
+// Restore day mode chip
+document.querySelectorAll('[data-mode]').forEach(function(el){
+  el.classList.toggle('active', el.getAttribute('data-mode')===dayMode);
+  el.addEventListener('click', function(){ setDayMode(el.getAttribute('data-mode')); });
+});
+// Apply theme immediately so text is readable before sky draws
+applyTheme(slot(new Date().getHours()));
+updateClock();
+render();
+setInterval(function(){ try{updateClock();}catch(e){} }, 10000);
+setInterval(function(){ try{checkNotif();render();}catch(e){} }, 30000);
+
+/* ════════════════════════════════════════════
+   NOTIFICATION PREVIEW MODE
+════════════════════════════════════════════ */
+let currentNotifId = null;
+
+function showNotifModal(id) {
+  const all = allItems();
+  const r   = all.find(i=>i.id===id);
+  if (!r) return;
+  currentNotifId = id;
+
+  const now = new Date();
+  document.getElementById('nmTime').textContent =
+    String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0')+'  おしらせ';
+  document.getElementById('nmIcon').textContent  = r.icon;
+  document.getElementById('nmTitle').textContent = r.title;
+  document.getElementById('nmMsg').textContent   = r.msg || getMsg(r.id, slot(now.getHours()));
+
+  // button actions
+  document.getElementById('nmDoneBtn').onclick   = function(){ notifAction('done');   };
+  document.getElementById('nmSkipBtn').onclick   = function(){ notifAction('skip');   };
+  document.getElementById('nmSnoozeBtn').onclick = function(){ notifAction('snooze'); };
+
+  document.getElementById('notifOverlay').classList.add('show');
+  document.getElementById('notifModal').classList.add('show');
+}
+
+function closeNotifModal() {
+  document.getElementById('notifOverlay').classList.remove('show');
+  document.getElementById('notifModal').classList.remove('show');
+  currentNotifId = null;
+}
+
+function notifAction(action) {
+  const id = currentNotifId;
+  closeNotifModal();
+  if (!id) return;
+  setTimeout(() => {
+    if (action === 'done')   markItem(id, 'done');
+    else if (action === 'skip') markItem(id, 'skip');
+    else if (action === 'snooze') snoozeItem(id);
+  }, 250); // slight delay so modal close animates first
+}
+
+function previewNextNotif() {
+  // Find next undone item closest to current time
+  const nm  = NM();
+  const all = activeItems().filter(r => !states[r.id]);
+  if (!all.length) { showToast('✅','全部できてます！'); return; }
+  // pick closest upcoming, or first undone
+  all.sort((a,b) => {
+    const da = Math.abs(PT(a.time) - nm);
+    const db = Math.abs(PT(b.time) - nm);
+    return da - db;
+  });
+  showNotifModal(all[0].id);
+}
+
+// checkNotif runs on interval; modal shown via previewNextNotif()
+
+
+/* ════════════════════════════════════════════
+   SETTINGS TOGGLES
+════════════════════════════════════════════ */
+function renderSettingsToggles(){
+  var el = document.getElementById('itemToggles');
+  if(!el) return;
+  var all = allItems();
+  var html = '';
+  for(var i=0;i<all.length;i++){
+    var r  = all[i];
+    var on = disabledIds.indexOf(r.id)===-1;
+    var bgColor  = on ? 'rgba(50,180,100,0.85)' : 'rgba(100,100,120,0.45)';
+    var dotLeft  = on ? '21px' : '3px';
+    html += '<div class="sg-row tgl-row">';
+    html += '<div><div class="sg-lbl">' + r.icon + ' ' + r.title + '</div>';
+    html += '<div class="sg-sub">' + r.time + ' ごろ</div></div>';
+    html += '<div class="tgl-wrap" style="background:' + bgColor + '" onclick="toggleItem_enabled(' + "'" + r.id + "'" + ')">';
+    html += '<div class="tgl-dot" style="left:' + dotLeft + '"></div></div>';
+    html += '</div>';
+  }
+  el.innerHTML = html;
+}
+
+function toggleAllItems(){
+  const all = allItems();
+  const anyEnabled = all.some(r=>disabledIds.indexOf(r.id)===-1);
+  if(anyEnabled){
+    // disable all
+    all.forEach(r=>disabledItems.add(r.id));
+  } else {
+    // enable all
+    disabledIds=[];
+  }
+  saveDisabled();renderSettingsToggles();render();
+}
+
+
+/* ════════════════════════════════════════════
+   PWA — Service Worker & Push Subscription
+════════════════════════════════════════════ */
+var VAPID_PUBLIC_KEY = 'BNLDfr9jc8t4R4s1ui72J1zAyS7Ib5TlwonV3hkqApZdzQ8B8viethi60TnjFjtQF-h466ecP-5h3sHGo6WQlzY';
+var PUSH_SERVER_URL  = ''; // ← Cloudflare WorkerのURLを入れる (例: https://karada-push.yourname.workers.dev)
+
+function urlBase64ToUint8Array(base64String) {
+  var padding = '='.repeat((4 - base64String.length % 4) % 4);
+  var base64  = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  var raw     = atob(base64);
+  var output  = new Uint8Array(raw.length);
+  for (var i = 0; i < raw.length; i++) { output[i] = raw.charCodeAt(i); }
+  return output;
+}
+
+// Register Service Worker
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('./sw.js').then(function(reg) {
+      console.log('SW registered:', reg.scope);
+      // Listen for messages from SW (notification actions)
+      navigator.serviceWorker.addEventListener('message', function(e) {
+        if (e.data && e.data.type === 'notif_action') {
+          if (e.data.action === 'done')   markItem(e.data.tag, 'done');
+          if (e.data.action === 'snooze') snoozeItem(e.data.tag);
+        }
+      });
+    }).catch(function(err) {
+      console.log('SW registration failed:', err);
+    });
+  });
+}
+
+// Request push permission & subscribe
+function subscribePush() {
+  if (!('PushManager' in window)) {
+    showToast('📵', 'このブラウザはプッシュ通知に対応していません');
+    return Promise.resolve(false);
+  }
+  return navigator.serviceWorker.ready.then(function(reg) {
+    return reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+    });
+  }).then(function(sub) {
+    // Send subscription to server
+    if (PUSH_SERVER_URL) {
+      return fetch(PUSH_SERVER_URL + '/subscribe', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(sub)
+      }).then(function() {
+        showToast('🔔', 'プッシュ通知を登録しました');
+        return true;
+      });
+    } else {
+      // Store locally for when server is set up
+      try { localStorage.setItem('push_subscription', JSON.stringify(sub)); } catch(e) {}
+      showToast('🔔', '通知を許可しました（サーバー設定後に有効）');
+      return true;
+    }
+  }).catch(function(err) {
+    console.log('Push subscription failed:', err);
+    return false;
+  });
+}
+
+// Send settings to push server (so server knows what time to notify)
+function syncSettingsToServer() {
+  if (!PUSH_SERVER_URL) return;
+  fetch(PUSH_SERVER_URL + '/settings', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(sets)
+  }).catch(function() {});
+}
+
+// Handle URL params from notification click
+(function() {
+  var params = new URLSearchParams(window.location.search);
+  var action = params.get('action');
+  var tag    = params.get('tag');
+  if (action && tag) {
+    window.addEventListener('load', function() {
+      setTimeout(function() {
+        if (action === 'done')   markItem(tag, 'done');
+        if (action === 'snooze') snoozeItem(tag);
+      }, 500);
+    });
+  }
+})();
+
+
+/* ════════════════════════════
+   BONUS ITEMS — 今日のひと手間
+   設計: 必須項目とは完全に分離
+   1日2個をランダム表示、できたらボーナス扱い
+   記録するが達成率には影響しない
+════════════════════════════ */
+var BONUS_POOL = [
+  {id:'b01',icon:'📖', title:'1ページだけ本を読む',          timeOk: null},
+  {id:'b02',icon:'🎵', title:'好きな音楽をかける',            timeOk: null},
+  {id:'b03',icon:'🫖', title:'紅茶かハーブティーを入れる',    timeOk: null},
+  {id:'b04',icon:'🕯️',title:'お香をたく',                    timeOk: [10,16]}, // 猫が寝ている10〜16時限定
+  {id:'b05',icon:'🪟', title:'窓を開けて深呼吸する',          timeOk: null},
+  {id:'b06',icon:'💆', title:'首と肩を1分ほぐす',             timeOk: null},
+  {id:'b07',icon:'💧', title:'コップ1杯の水をゆっくり飲む',  timeOk: null},
+  {id:'b08',icon:'✍️', title:'今日の良かったことを1つ書く',  timeOk: null},
+  {id:'b09',icon:'🌿', title:'植物に水をあげる',              timeOk: null},
+  {id:'b10',icon:'🌸', title:'好きな香りのものを嗅ぐ',       timeOk: null},
+];
+
+// 現在時刻に表示OKなアイテムだけ返す
+function getAvailableBonus(){
+  const h = new Date().getHours();
+  return BONUS_POOL.filter(function(r){
+    if(!r.timeOk) return true;
+    return h >= r.timeOk[0] && h < r.timeOk[1];
+  });
+}
+
+// Pick 2 deterministic items per day (same items all day, different each day)
+function getTodayBonus() {
+  var pool = getAvailableBonus();
+  if(pool.length === 0) return [];
+  var d    = new Date();
+  var seed = d.getFullYear()*10000 + (d.getMonth()+1)*100 + d.getDate();
+  // Pick up to 2, avoiding already-done ones first
+  var undone = pool.filter(function(r){ return !states['bonus_'+r.id]; });
+  var pick   = undone.length > 0 ? undone : pool;
+  var i1 = seed % pick.length;
+  var i2 = (seed * 7 + 3) % pick.length;
+  if(i2 === i1) i2 = (i2+1) % pick.length;
+  if(pick.length === 1) return [pick[0]];
+  return [pick[i1], pick[i2]];
+}
+
+function renderBonus() {
+  var el = document.getElementById('bonusCard');
+  if(!el) return;
+  var items = getTodayBonus();
+  var html = '';
+  items.forEach(function(r) {
+    var st = states['bonus_'+r.id];
+    html += '<div class="swipe-card glass" style="margin-bottom:8px;opacity:'+(st?'0.42':'1')+'">';
+    html += '<div class="c-top">';
+    html += '<div class="c-icon">'+r.icon+'</div>';
+    html += '<div class="c-body"><div class="c-title">'+r.title+'</div>';
+    html += '<div class="c-msg">できたらラッキー。できなくても全然OK 🌱</div></div>';
+    if(st) html += '<div class="c-right"><span class="badge b-done">✅ やった</span></div>';
+    else   html += '<div class="c-right"><button class="abtn" style="font-size:12px;" data-bonus="'+r.id+'">やった！</button></div>';
+    html += '</div></div>';
+  });
+  el.innerHTML = html;
+  // attach listeners
+  el.querySelectorAll('[data-bonus]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var id = btn.getAttribute('data-bonus');
+      states['bonus_'+id] = 'done';
+      saveStates();
+      renderBonus();
+      showToast('✨', 'ナイスひと手間！');
+    });
+  });
+}
+
+
+/* ──────────────────────────────
+   ひと手間トリガー
+   ・直近2件がスキップ
+   ・150分（2.5h）以上 done が出ていない
+   のどちらかで通知
+────────────────────────────── */
+function checkBonusTrigger(nm){
+  // 今日の全アクション
+  const recentActs = activeItems()
+    .map(function(r){ return {id:r.id, st:states[r.id], t:PT(r.time)}; })
+    .filter(function(r){ return r.t <= nm; })
+    .slice(-4); // 直近4件
+
+  const skips  = recentActs.filter(function(r){ return r.st==='skip'; }).length;
+  const lastDone = recentActs.filter(function(r){ return r.st==='done'; });
+  const lastDoneMin = lastDone.length>0 ? Math.max.apply(null, lastDone.map(function(r){return r.t;})) : 0;
+  const gap = nm - lastDoneMin;
+
+  const shouldTrigger = (skips>=2) || (gap>=150 && nm>9*60 && recentActs.length>0);
+  if(!shouldTrigger) return;
+
+  const bonusKey = TDK()+'-bonus-hint';
+  if(notified.has(bonusKey)) return;
+  notified.add(bonusKey);
+
+  const pool = getAvailableBonus().filter(function(r){ return !states['bonus_'+r.id]; });
+  if(pool.length===0) return;
+  const item = pool[Math.floor(Math.random()*pool.length)];
+
+  // Show as toast + notification
+  showToast(item.icon, 'ひと手間どうですか？ '+item.title);
+  if(Notification.permission==='granted'){
+    new Notification(item.icon+' ひと手間どうですか？', {
+      body: item.title + ' — 気分転換にちょうどいいかも',
+      tag: 'bonus-hint'
+    });
+  }
+}
+
+</script>
+</body>
+</html>
