@@ -1017,15 +1017,21 @@ function load(){
   fetchSettingsFromServer();
 }
 
-// ★ 修正2: inputのvalue=""でsetsを上書きしないよう保護
 function saveSets(){
+  // inputから値を読む（設定パネルが開いているときのみ有効）
+  var updated = false;
   Object.keys(sets).forEach(k=>{
     const el=document.getElementById(k);
-    if(el && el.value) sets[k]=el.value;
+    if(el && el.value && el.value !== sets[k]){
+      sets[k]=el.value;
+      updated=true;
+    }
   });
-  try{localStorage.setItem('yururun_sets',JSON.stringify(sets));}catch(e){}
+  if(updated){
+    try{localStorage.setItem('yururun_sets',JSON.stringify(sets));}catch(e){}
+    syncSettingsToServer();
+  }
   render();
-  syncSettingsToServer();
 }
 
 function saveStates(){
