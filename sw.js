@@ -72,12 +72,12 @@ self.addEventListener('push', function(event) {
 
   var options = {
     body:    data.body  || 'お知らせがあります',
-    icon:    '/karada-oshirase/icon-192.png',
-    badge:   '/karada-oshirase/icon-192.png',
-    tag:     data.tag   || 'karada',
+    icon:    '/yururun/icon-192.png',
+    badge:   '/yururun/icon-192.png',
+    tag:     data.tag   || 'yururun',
     renotify: true,
     data: {
-      url: data.url || '/karada-oshirase/',
+      url: data.url || '/yururun/',
       tag: data.tag || ''
     },
     actions: [
@@ -101,7 +101,7 @@ self.addEventListener('notificationclick', function(event) {
 
   var action = event.action || 'open';
   var tag    = event.notification.data ? event.notification.data.tag : '';
-  var url    = event.notification.data ? event.notification.data.url : '/karada-oshirase/';
+  var url    = event.notification.data ? event.notification.data.url : '/yururun/';
 
   // アクション付きURLを作成
   if (action && tag) {
