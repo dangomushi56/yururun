@@ -1,6 +1,5 @@
-import webpush from 'web-push';
-
 const VAPID_PUBLIC_KEY = 'BLO97ZZkpHn7gJTmOWg41zVWOVxlP82xU-Ry4izt8VEBarCVaXeOd2o_lztwv7PScz7Yu4xXcTRbuRqWKE9HJGs';
+
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
@@ -49,36 +48,154 @@ function json(data, status = 200) {
   });
 }
 
-// VAPID秘密鍵を正規化（PEM・base64・base64url どの形式でも対応）
+// ===== Web Push (native Web Crypto API — no external library) =====
+
+function b64uToBytes(b64u) {
+  const b64 = b64u.replace(/-/g, '+').replace(/_/g, '/');
+  const padded = b64.padEnd(b64.length + (4 - b64.length % 4) % 4, '=');
+  return Uint8Array.from(atob(padded), c => c.charCodeAt(0));
+}
+
+function bytesToB64u(buffer) {
+  const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
+  return btoa(String.fromCharCode(...bytes))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+}
+
+function concat(...arrays) {
+  const total = arrays.reduce((sum, a) => sum + a.length, 0);
+  const out = new Uint8Array(total);
+  let offset = 0;
+  for (const a of arrays) { out.set(a, offset); offset += a.length; }
+  return out;
+}
+
+async function hmacSha256(key, data) {
+  const k = await crypto.subtle.importKey('raw', key, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  return new Uint8Array(await crypto.subtle.sign('HMAC', k, data));
+}
+
+async function hkdfExtract(salt, ikm) {
+  return hmacSha256(salt, ikm);
+}
+
+async function hkdfExpand(prk, info, len) {
+  return (await hmacSha256(prk, concat(info, new Uint8Array([1])))).slice(0, len);
+}
+
+// VAPID秘密鍵を正規化してbase64url文字列を返す
 function normalizePrivateKey(raw) {
   const s = raw.trim();
-  // PEM形式の場合: DERから32バイトの秘密鍵を取り出す
   if (s.includes('-----')) {
     const b64 = s.replace(/-----[^-]+-----/g, '').replace(/\s+/g, '');
     const der = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
-    // SEC1 DER: 30 77 02 01 01 04 20 <32bytes private key> ...
-    // private keyは offset 7 から32バイト（固定位置）
-    const keyBytes = der.slice(7, 39);
-    return btoa(String.fromCharCode(...keyBytes))
-      .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+    return bytesToB64u(der.slice(7, 39));
   }
-  // base64 → base64url 変換（+/ を -_ に）
   return s.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '').replace(/\s+/g, '');
 }
 
-async function sendPush(env, subscription, payload) {
-  const privateKey = normalizePrivateKey(env.VAPID_PRIVATE_KEY);
-  webpush.setVapidDetails(
-    env.VAPID_SUBJECT,
-    VAPID_PUBLIC_KEY,
-    privateKey
-  );
-  const result = await webpush.sendNotification(subscription, JSON.stringify(payload));
-  return result;
+// 秘密鍵をECDSA署名用にインポート（JWK形式）
+async function importSigningKey(privateKeyB64u) {
+  const pubBytes = b64uToBytes(VAPID_PUBLIC_KEY);
+  return crypto.subtle.importKey('jwk', {
+    kty: 'EC', crv: 'P-256',
+    d: privateKeyB64u,
+    x: bytesToB64u(pubBytes.slice(1, 33)),
+    y: bytesToB64u(pubBytes.slice(33, 65)),
+  }, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']);
 }
 
+// VAPID JWT を生成
+async function createVapidJwt(endpoint, subject, privateKeyB64u) {
+  const { protocol, host } = new URL(endpoint);
+  const enc = obj => btoa(JSON.stringify(obj))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  const input = `${enc({ typ: 'JWT', alg: 'ES256' })}.${enc({
+    aud: `${protocol}//${host}`,
+    exp: Math.floor(Date.now() / 1000) + 43200,
+    sub: subject,
+  })}`;
+  const key = await importSigningKey(privateKeyB64u);
+  const sig = await crypto.subtle.sign(
+    { name: 'ECDSA', hash: 'SHA-256' }, key, new TextEncoder().encode(input)
+  );
+  return `${input}.${bytesToB64u(sig)}`;
+}
+
+// ペイロードを RFC 8291 / RFC 8188 (aes128gcm) で暗号化
+async function encryptPayload(subscription, payloadStr) {
+  const receiverPub = b64uToBytes(subscription.keys.p256dh);
+  const auth        = b64uToBytes(subscription.keys.auth);
+
+  // 送信者ECDHキーペア生成
+  const senderKP = await crypto.subtle.generateKey(
+    { name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveBits']
+  );
+  const receiverKey = await crypto.subtle.importKey(
+    'raw', receiverPub, { name: 'ECDH', namedCurve: 'P-256' }, false, []
+  );
+  const ecdhBits = new Uint8Array(
+    await crypto.subtle.deriveBits({ name: 'ECDH', public: receiverKey }, senderKP.privateKey, 256)
+  );
+  const senderPub = new Uint8Array(await crypto.subtle.exportKey('raw', senderKP.publicKey));
+
+  // RFC 8291: IKM 導出
+  const prkKey = await hkdfExtract(auth, ecdhBits);
+  const ikm = await hkdfExpand(
+    prkKey,
+    concat(new TextEncoder().encode('WebPush: info\x00'), receiverPub, senderPub),
+    32
+  );
+
+  // RFC 8188: CEK と nonce 導出
+  const salt  = crypto.getRandomValues(new Uint8Array(16));
+  const prk   = await hkdfExtract(salt, ikm);
+  const cek   = await hkdfExpand(prk, new TextEncoder().encode('Content-Encoding: aes128gcm\x00'), 16);
+  const nonce = await hkdfExpand(prk, new TextEncoder().encode('Content-Encoding: nonce\x00'), 12);
+
+  // 暗号化
+  const cekKey = await crypto.subtle.importKey('raw', cek, { name: 'AES-GCM' }, false, ['encrypt']);
+  const plain  = concat(new TextEncoder().encode(payloadStr), new Uint8Array([2])); // 0x02 = last record
+  const ciphertext = new Uint8Array(
+    await crypto.subtle.encrypt({ name: 'AES-GCM', iv: nonce }, cekKey, plain)
+  );
+
+  // aes128gcm ヘッダー: salt(16) + rs(4) + idlen(1) + sender_public(65)
+  const rs = new Uint8Array(4);
+  new DataView(rs.buffer).setUint32(0, 4096, false);
+  return concat(salt, rs, new Uint8Array([65]), senderPub, ciphertext);
+}
+
+// プッシュ通知送信
+async function sendPush(env, subscription, payload) {
+  const privateKey = normalizePrivateKey(env.VAPID_PRIVATE_KEY);
+  const jwt  = await createVapidJwt(subscription.endpoint, env.VAPID_SUBJECT, privateKey);
+  const body = await encryptPayload(subscription, JSON.stringify(payload));
+
+  const res = await fetch(subscription.endpoint, {
+    method: 'POST',
+    headers: {
+      'Authorization':    `vapid t=${jwt},k=${VAPID_PUBLIC_KEY}`,
+      'Content-Encoding': 'aes128gcm',
+      'Content-Type':     'application/octet-stream',
+      'TTL':              '86400',
+    },
+    body,
+  });
+
+  if (res.status !== 201) {
+    const text = await res.text();
+    const err = new Error(text);
+    err.statusCode = res.status;
+    err.body = text;
+    throw err;
+  }
+  return { statusCode: res.status };
+}
+
+// =====================================================
+
 export default {
-  // HTTP リクエストハンドラ
   async fetch(request, env) {
     const url = new URL(request.url);
     const { pathname } = url;
@@ -100,7 +217,7 @@ export default {
       }
     }
 
-    // POST /settings — 設定保存（フロントエンドから毎回送られる）
+    // POST /settings — 設定保存
     if (pathname === '/settings' && request.method === 'POST') {
       try {
         const settings = await request.json();
@@ -112,7 +229,7 @@ export default {
       }
     }
 
-    // GET /settings — 設定取得（別端末での復元用）
+    // GET /settings — 設定取得
     if (pathname === '/settings' && request.method === 'GET') {
       try {
         const s = await env.YURURUN_KV.get('settings', 'json');
@@ -152,37 +269,26 @@ export default {
 };
 
 async function runScheduled(env) {
-  // JST (UTC+9) の現在時刻を HH:MM 形式で取得
   const now = new Date();
-  const jstOffset = 9 * 60 * 60 * 1000;
-  const jst = new Date(now.getTime() + jstOffset);
-  const hh = String(jst.getUTCHours()).padStart(2, '0');
-  const mm = String(jst.getUTCMinutes()).padStart(2, '0');
+  const jst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+  const hh  = String(jst.getUTCHours()).padStart(2, '0');
+  const mm  = String(jst.getUTCMinutes()).padStart(2, '0');
   const currentTime = `${hh}:${mm}`;
 
   console.log(`Cron tick JST: ${currentTime}`);
 
-  // サブスクリプション取得
   const subRaw = await env.YURURUN_KV.get('subscription');
-  if (!subRaw) {
-    console.log('No subscription registered');
-    return;
-  }
+  if (!subRaw) { console.log('No subscription registered'); return; }
   const subscription = JSON.parse(subRaw);
 
-  // 設定取得
-  const settings = await env.YURURUN_KV.get('settings', 'json') || {};
-  const merged = { ...DEFAULT_SETTINGS, ...settings };
+  const settings    = await env.YURURUN_KV.get('settings', 'json') || {};
+  const merged      = { ...DEFAULT_SETTINGS, ...settings };
   const disabledIds = merged.disabledIds || [];
 
-  // 現在時刻に一致する通知を探す
   for (const item of SCHEDULE) {
     const scheduledTime = merged[item.tk];
     if (!scheduledTime || scheduledTime !== currentTime) continue;
-    if (disabledIds.includes(item.id)) {
-      console.log(`Skipping disabled: ${item.id}`);
-      continue;
-    }
+    if (disabledIds.includes(item.id)) { console.log(`Skipping disabled: ${item.id}`); continue; }
 
     console.log(`Sending push for: ${item.id} at ${currentTime}`);
     try {
@@ -195,7 +301,6 @@ async function runScheduled(env) {
       console.log(`Push response: ${result.statusCode}`);
     } catch (e) {
       console.error(`Push failed for ${item.id}:`, e.statusCode, e.body);
-      // サブスクリプションが無効な場合は削除
       if (e.statusCode === 410 || e.statusCode === 404) {
         console.log('Subscription expired, removing from KV');
         await env.YURURUN_KV.delete('subscription');
