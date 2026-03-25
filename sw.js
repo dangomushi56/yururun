@@ -92,10 +92,16 @@ self.addEventListener('push', function(event) {
   event.waitUntil(
     self.registration.showNotification(data.title || 'ゆるるん', options)
       .then(function() {
+        // SW から直接バッジをセット（アプリが閉じていても動作）
+        if ('setAppBadge' in self.navigator) {
+          return self.navigator.setAppBadge().catch(function(){});
+        }
+      })
+      .then(function() {
         return self.clients.matchAll({ type: 'window', includeUncontrolled: true });
       })
       .then(function(clients) {
-        // 開いているウィンドウにバッジ更新を依頼
+        // 開いているウィンドウにも通知してページ側カウントを更新
         clients.forEach(function(c) {
           c.postMessage({ type: 'push_received', tag: data.tag || '' });
         });
@@ -110,15 +116,24 @@ self.addEventListener('notificationclick', function(event) {
 
   var action  = event.action || '';
   var tag     = event.notification.data ? event.notification.data.tag : '';
+  var title   = event.notification.title || '';
+  var body    = event.notification.body  || '';
   var baseUrl = 'https://dangomushi56.github.io/yururun/';
   var url;
 
+  // 通知をタップしたのでバッジをリセット
+  if ('clearAppBadge' in self.navigator) {
+    self.navigator.clearAppBadge().catch(function(){});
+  }
+
   // アクションボタン（できた/スキップ/あとで）は直接適用URL
-  // 通知本体タップはモーダル表示URL
+  // 通知本体タップはモーダル表示URL（タイトル・本文も渡す）
   if (action === 'done' || action === 'skip' || action === 'snooze') {
     url = baseUrl + '?source=push&actionId=' + tag + '&action=' + action;
   } else {
-    url = baseUrl + '?source=push&actionId=' + tag;
+    url = baseUrl + '?source=push&actionId=' + tag
+        + '&t=' + encodeURIComponent(title)
+        + '&b=' + encodeURIComponent(body);
   }
 
   event.waitUntil(
@@ -126,11 +141,11 @@ self.addEventListener('notificationclick', function(event) {
       for (var i = 0; i < clients.length; i++) {
         var client = clients[i];
         if (client.url.indexOf('yururun') !== -1) {
-          // アプリが開いている場合はメッセージで通知
+          // アプリが開いている場合はメッセージで通知（タイトル・本文も渡す）
           if (action === 'done' || action === 'skip' || action === 'snooze') {
             client.postMessage({ type: 'notif_action', action: action, tag: tag });
           } else {
-            client.postMessage({ type: 'show_notif_modal', tag: tag });
+            client.postMessage({ type: 'show_notif_modal', tag: tag, title: title, body: body });
           }
           return client.focus();
         }

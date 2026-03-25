@@ -1592,9 +1592,13 @@ setInterval(function(){ try{checkNotif();render();}catch(e){} }, 60000);
 ════════════════════════════════════════════ */
 let currentNotifId = null;
 
-function showNotifModal(id) {
+function showNotifModal(id, fallback) {
   const all = allItems();
-  const r   = all.find(i=>i.id===id);
+  let r = all.find(i=>i.id===id);
+  // allItems に存在しない ID（'test' など）はfallbackで表示
+  if (!r && fallback && fallback.title) {
+    r = { id: id, icon: '🔔', title: fallback.title, msg: fallback.body || '' };
+  }
   if (!r) return;
   currentNotifId = id;
   const now = new Date();
@@ -1715,8 +1719,9 @@ if ('serviceWorker' in navigator) {
           // 通知本体タップ → メインパネルに戻してモーダル表示 + バッジリセット
           clearUnread();
           switchP('main');
+          var fb = e.data.title ? { title: e.data.title, body: e.data.body } : undefined;
           setTimeout(function(){
-            showNotifModal(tag);
+            showNotifModal(tag, fb);
             setTimeout(function(){ highlightCard(tag); }, 300);
           }, 150);
         }
@@ -1854,9 +1859,12 @@ function fetchSettingsFromServer() {
         highlightCard(actionId);
       } else {
         // 通知本体タップ → メインパネルに切り替えてモーダル表示
+        var t  = params.get('t') || '';
+        var b  = params.get('b') || '';
+        var fb = t ? { title: t, body: b } : undefined;
         switchP('main');
         setTimeout(function(){
-          showNotifModal(actionId);
+          showNotifModal(actionId, fb);
           setTimeout(function(){ highlightCard(actionId); }, 300);
         }, 150);
       }
