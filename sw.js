@@ -4,6 +4,15 @@
 
 const SW_VERSION = 'v4';
 
+// 処理待ち通知をIDBに保存（postMessageが届かなかった場合のフォールバック）
+function storePendingNotif(data) {
+  var req = indexedDB.open('yururun_badge', 1);
+  req.onupgradeneeded = function(e) { e.target.result.createObjectStore('kv'); };
+  req.onsuccess = function(e) {
+    try { e.target.result.transaction('kv','readwrite').objectStore('kv').put(data,'pending_notif'); } catch(err) {}
+  };
+}
+
 // IndexedDB ヘルパー — unread通知数をSW↔ページ間で共有
 function badgeIDB(mode, value) {
   return new Promise(function(resolve) {
@@ -155,14 +164,16 @@ self.addEventListener('notificationclick', function(event) {
     self.navigator.clearAppBadge().catch(function(){});
   }
 
-  // アクションボタン（できた/スキップ/あとで）は直接適用URL
-  // 通知本体タップはモーダル表示URL（タイトル・本文も渡す）
+  // IDBに処理待ちを保存（postMessageが届かない場合のフォールバック）
+  storePendingNotif({
+    tag: tag, title: title, body: body, action: action, ts: Date.now()
+  });
+
+  // 通知本体タップ → モーダル表示URL（アプリが閉じている場合に使用）
   if (action === 'done' || action === 'skip' || action === 'snooze') {
     url = baseUrl + '?source=push&actionId=' + tag + '&action=' + action;
   } else {
-    url = baseUrl + '?source=push&actionId=' + tag
-        + '&t=' + encodeURIComponent(title)
-        + '&b=' + encodeURIComponent(body);
+    url = baseUrl + '?source=push&actionId=' + tag;
   }
 
   event.waitUntil(
@@ -170,7 +181,7 @@ self.addEventListener('notificationclick', function(event) {
       for (var i = 0; i < clients.length; i++) {
         var client = clients[i];
         if (client.url.indexOf('yururun') !== -1) {
-          // アプリが開いている場合はメッセージで通知（タイトル・本文も渡す）
+          // アプリが開いている場合はpostMessageで即時処理（IDBのフォールバックより速い）
           if (action === 'done' || action === 'skip' || action === 'snooze') {
             client.postMessage({ type: 'notif_action', action: action, tag: tag });
           } else {

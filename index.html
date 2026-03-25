@@ -1350,6 +1350,45 @@ function clearUnread(){
   });
   if('clearAppBadge' in navigator)navigator.clearAppBadge().catch(function(){});
 }
+// IDBに保存された処理待ち通知を読んでUIに反映
+// load / pageshow(BFCache復帰) 両方で呼ばれる
+function checkPendingNotif() {
+  var req = indexedDB.open('yururun_badge', 1);
+  req.onupgradeneeded = function(e) { e.target.result.createObjectStore('kv'); };
+  req.onsuccess = function(e) {
+    var db = e.target.result;
+    var r  = db.transaction('kv','readonly').objectStore('kv').get('pending_notif');
+    r.onsuccess = function(ev) {
+      var p = ev.target.result;
+      if (!p) return;
+      // 5分以上前のものは無視（古い残留データ）
+      if (Date.now() - (p.ts || 0) > 300000) {
+        db.transaction('kv','readwrite').objectStore('kv').delete('pending_notif');
+        return;
+      }
+      // 処理したので即削除（postMessageとの二重実行を防ぐ）
+      db.transaction('kv','readwrite').objectStore('kv').delete('pending_notif');
+      clearUnread();
+      setTimeout(function() {
+        switchP('main');
+        if (p.action === 'done') {
+          markItem(p.tag, 'done'); highlightCard(p.tag);
+        } else if (p.action === 'skip') {
+          markItem(p.tag, 'skip'); highlightCard(p.tag);
+        } else if (p.action === 'snooze') {
+          snoozeItem(p.tag); highlightCard(p.tag);
+        } else {
+          var fb = p.title ? { title: p.title, body: p.body } : undefined;
+          setTimeout(function() {
+            showNotifModal(p.tag, fb);
+            setTimeout(function(){ highlightCard(p.tag); }, 300);
+          }, 150);
+        }
+      }, 500);
+    };
+  };
+}
+
 function highlightCard(id){
   var el=document.getElementById('card-'+id);
   if(!el) return;
@@ -1572,8 +1611,11 @@ function initApp(){
   // 4) プッシュ通知の登録状態を確認してボタンを更新
   checkPushRegistration();
 
-  // 5) バッジを現在の未完了件数で更新
+  // 5) バッジをIDBから同期
   updateBadge();
+
+  // 6) 処理待ち通知があればUIに反映（通知タップ後の新規起動に対応）
+  checkPendingNotif();
 }
 
 // DOMContentLoaded後に実行（DOM要素が確実に存在する状態で起動）
@@ -1595,6 +1637,8 @@ window.addEventListener('pageshow', function(e){
     });
     updateSetupSummary();
     render();
+    // BFCache復帰時: postMessageが届かなかった場合のフォールバック
+    checkPendingNotif();
   }
 });
 
@@ -1736,16 +1780,18 @@ if ('serviceWorker' in navigator) {
         if (!e.data) return;
         var tag = e.data.tag;
         if (e.data.type === 'notif_action') {
-          // アクションボタン（できた/スキップ/あとで）→ 直接記録 + バッジリセット
+          // postMessageで届いた → IDB処理待ちを削除してからアクション実行
           clearUnread();
+          openBadgeDB(function(db){ db.transaction('kv','readwrite').objectStore('kv').delete('pending_notif'); });
           if (e.data.action === 'done')        markItem(tag, 'done');
           else if (e.data.action === 'skip')   markItem(tag, 'skip');
           else if (e.data.action === 'snooze') snoozeItem(tag);
           setTimeout(function(){ highlightCard(tag); }, 300);
         }
         if (e.data.type === 'show_notif_modal') {
-          // 通知本体タップ → メインパネルに戻してモーダル表示 + バッジリセット
+          // postMessageで届いた → IDB処理待ちを削除してからモーダル表示
           clearUnread();
+          openBadgeDB(function(db){ db.transaction('kv','readwrite').objectStore('kv').delete('pending_notif'); });
           switchP('main');
           var fb = e.data.title ? { title: e.data.title, body: e.data.body } : undefined;
           setTimeout(function(){
@@ -1866,39 +1912,7 @@ function fetchSettingsFromServer() {
     .catch(function(){}); // オフライン時はlocalStorageのまま動作
 }
 
-(function() {
-  var params   = new URLSearchParams(window.location.search);
-  var source   = params.get('source');
-  var action   = params.get('action');
-  var actionId = params.get('actionId') || params.get('tag'); // 旧形式後方互換
-  if (!actionId || source !== 'push') return;
-  window.addEventListener('load', function() {
-    // 通知起点で開いた → バッジリセット
-    clearUnread();
-    setTimeout(function() {
-      if (action === 'done') {
-        markItem(actionId, 'done');
-        highlightCard(actionId);
-      } else if (action === 'skip') {
-        markItem(actionId, 'skip');
-        highlightCard(actionId);
-      } else if (action === 'snooze') {
-        snoozeItem(actionId);
-        highlightCard(actionId);
-      } else {
-        // 通知本体タップ → メインパネルに切り替えてモーダル表示
-        var t  = params.get('t') || '';
-        var b  = params.get('b') || '';
-        var fb = t ? { title: t, body: b } : undefined;
-        switchP('main');
-        setTimeout(function(){
-          showNotifModal(actionId, fb);
-          setTimeout(function(){ highlightCard(actionId); }, 300);
-        }, 150);
-      }
-    }, 600);
-  });
-})();
+// 通知タップ → URLパラメータ方式は廃止。IDB経由（checkPendingNotif）に一本化済み
 
 /* ════════════════════════════
    BONUS ITEMS
