@@ -1370,7 +1370,7 @@ function checkPendingNotif() {
       db.transaction('kv','readwrite').objectStore('kv').delete('pending_notif');
       clearUnread();
       setTimeout(function() {
-        switchP('main');
+        // モーダルはz-index:999999で全パネル上に重なるためタブ切替不要
         if (p.action === 'done') {
           markItem(p.tag, 'done'); highlightCard(p.tag);
         } else if (p.action === 'skip') {
@@ -1654,6 +1654,8 @@ document.addEventListener('visibilitychange', function(){
     document.querySelectorAll('.mode-chip').forEach(function(el){
       el.classList.toggle('active', el.getAttribute('data-mode')===dayMode);
     });
+    // 通知タップ後にpostMessageが届かなかった場合のフォールバック
+    checkPendingNotif();
   }
 });
 setInterval(function(){ try{updateClock();}catch(e){} }, 10000);
@@ -1792,7 +1794,7 @@ if ('serviceWorker' in navigator) {
           // postMessageで届いた → IDB処理待ちを削除してからモーダル表示
           clearUnread();
           openBadgeDB(function(db){ db.transaction('kv','readwrite').objectStore('kv').delete('pending_notif'); });
-          switchP('main');
+          // モーダルはz-index:999999で全パネル上に重なるためタブ切替不要
           var fb = e.data.title ? { title: e.data.title, body: e.data.body } : undefined;
           setTimeout(function(){
             showNotifModal(tag, fb);
