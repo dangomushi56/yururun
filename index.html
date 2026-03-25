@@ -193,6 +193,8 @@ body{font-family:'Noto Sans JP',sans-serif;min-height:100dvh;position:relative;
 .swipe-card.state-snooze{border-style:dashed!important;}
 @keyframes cpulse{0%,100%{box-shadow:0 0 0 1.5px rgba(255,255,255,0.5);}50%{box-shadow:0 0 0 3px rgba(255,255,255,0.10);}}
 .swipe-card.upcoming{animation:cpulse 2.5s infinite;}
+@keyframes pushHL{0%{box-shadow:0 0 0 3px rgba(255,210,80,0.95),0 0 28px rgba(255,210,80,0.45);}70%{box-shadow:0 0 0 2px rgba(255,210,80,0.5),0 0 12px rgba(255,210,80,0.2);}100%{box-shadow:none;}}
+.swipe-card.push-highlight{animation:pushHL 2s ease-out forwards;}
 
 .c-top{display:flex;align-items:center;gap:11px;}
 .c-icon{font-size:22px;flex-shrink:0;margin-top:1px;}
@@ -1156,6 +1158,7 @@ function buildCard(r,nm){
   outer.innerHTML=`<div class="reveal-done"><div class="rv-icon">✅</div><div class="rv-lbl">できた</div></div>
     <div class="reveal-skip"><div class="rv-lbl">スキップ</div><div class="rv-icon">⏭</div></div>`;
   const card=document.createElement('div');
+  card.id='card-'+r.id;
   card.className=`swipe-card glass${st?' state-'+st:''}${isUp?' upcoming':''}`;
   card.innerHTML=`<div class="c-top">
     <div class="c-icon">${r.icon}</div>
@@ -1282,10 +1285,12 @@ function markItem(id,val){
     }
   }
   if(val===null)  showToast('↩','取り消しました');
+  updateBadge();
 }
 const snoozeTmr={};
 function snoozeItem(id){
   states[id]='snooze';expandedItem=null;saveStates();render();
+  updateBadge();
   showToast('⏰','30分後に再おしらせします');
   clearTimeout(snoozeTmr[id]);
   snoozeTmr[id]=setTimeout(()=>{
@@ -1295,6 +1300,30 @@ function snoozeItem(id){
     }
   },30*60*1000);
 }
+/* ════════════════════════════════════════════
+   BADGE & HIGHLIGHT
+════════════════════════════════════════════ */
+function pendingCount(){
+  return activeItems().filter(function(r){
+    var s=states[r.id]; return s!=='done'&&s!=='skip';
+  }).length;
+}
+function updateBadge(){
+  if(!('setAppBadge' in navigator)) return;
+  var n=pendingCount();
+  if(n>0){ navigator.setAppBadge(n).catch(function(){}); }
+  else   { navigator.clearAppBadge().catch(function(){}); }
+}
+function highlightCard(id){
+  var el=document.getElementById('card-'+id);
+  if(!el) return;
+  el.scrollIntoView({behavior:'smooth',block:'center'});
+  el.classList.remove('push-highlight');
+  void el.offsetWidth; // reflow でアニメーションをリセット
+  el.classList.add('push-highlight');
+  setTimeout(function(){ el.classList.remove('push-highlight'); }, 2100);
+}
+
 function toggleCat(id){
   expandedCat=expandedCat===id?null:id;
   try{localStorage.setItem('yururun_expanded_cat',expandedCat||'');}catch(e){}
@@ -1506,6 +1535,9 @@ function initApp(){
 
   // 4) プッシュ通知の登録状態を確認してボタンを更新
   checkPushRegistration();
+
+  // 5) バッジを現在の未完了件数で更新
+  updateBadge();
 }
 
 // DOMContentLoaded後に実行（DOM要素が確実に存在する状態で起動）
@@ -1661,9 +1693,20 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js').then(function(reg) {
       console.log('SW registered:', reg.scope);
       navigator.serviceWorker.addEventListener('message', function(e) {
-        if (e.data && e.data.type === 'notif_action') {
-          if (e.data.action === 'done')   markItem(e.data.tag, 'done');
-          if (e.data.action === 'snooze') snoozeItem(e.data.tag);
+        if (!e.data) return;
+        var tag = e.data.tag;
+        if (e.data.type === 'notif_action') {
+          if (e.data.action === 'done')        markItem(tag, 'done');
+          else if (e.data.action === 'skip')   markItem(tag, 'skip');
+          else if (e.data.action === 'snooze') snoozeItem(tag);
+          setTimeout(function(){ highlightCard(tag); }, 300);
+        }
+        if (e.data.type === 'show_notif_modal') {
+          showNotifModal(tag);
+          setTimeout(function(){ highlightCard(tag); }, 300);
+        }
+        if (e.data.type === 'push_received') {
+          updateBadge();
         }
       });
     }).catch(function(err) {
@@ -1775,17 +1818,19 @@ function fetchSettingsFromServer() {
 }
 
 (function() {
-  var params = new URLSearchParams(window.location.search);
-  var action = params.get('action');
-  var tag    = params.get('tag');
-  if (action && tag) {
-    window.addEventListener('load', function() {
-      setTimeout(function() {
-        if (action === 'done')   markItem(tag, 'done');
-        if (action === 'snooze') snoozeItem(tag);
-      }, 500);
-    });
-  }
+  var params   = new URLSearchParams(window.location.search);
+  var source   = params.get('source');
+  var action   = params.get('action');
+  var actionId = params.get('actionId') || params.get('tag'); // 旧形式後方互換
+  if (!actionId) return;
+  window.addEventListener('load', function() {
+    setTimeout(function() {
+      if (action === 'done')        { markItem(actionId, 'done');   highlightCard(actionId); }
+      else if (action === 'skip')   { markItem(actionId, 'skip');   highlightCard(actionId); }
+      else if (action === 'snooze') { snoozeItem(actionId);         highlightCard(actionId); }
+      else if (source === 'push')   { showNotifModal(actionId); setTimeout(function(){ highlightCard(actionId); }, 300); }
+    }, 500);
+  });
 })();
 
 /* ════════════════════════════
