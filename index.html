@@ -442,24 +442,37 @@ body{font-family:'Noto Sans JP',sans-serif;min-height:100dvh;position:relative;
 
 /* ── グローバルナビ（画面下部） ── */
 .gnav{
-  position:fixed;bottom:0;left:0;right:0;z-index:1000;
+  position:fixed;bottom:0;left:0;right:0;
+  z-index:100001; /* statsPanel/settingsPanel(99999)より上 */
   display:flex;
-  background:rgba(0,0,0,0.42);
-  backdrop-filter:blur(20px) saturate(1.4);
-  -webkit-backdrop-filter:blur(20px) saturate(1.4);
-  border-top:1px solid rgba(255,255,255,0.11);
+  background:rgba(6,5,20,0.80);
+  backdrop-filter:blur(24px) saturate(1.5);
+  -webkit-backdrop-filter:blur(24px) saturate(1.5);
+  border-top:1px solid rgba(255,255,255,0.09);
   padding-bottom:env(safe-area-inset-bottom);
 }
 .gnav-btn{
   flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
-  padding:10px 0 8px;cursor:pointer;touch-action:manipulation;gap:3px;
-  opacity:0.50;transition:opacity 0.2s;
+  padding:8px 0 10px;cursor:pointer;touch-action:manipulation;gap:5px;
   -webkit-tap-highlight-color:transparent;
+  transition:transform 0.15s;
 }
-.gnav-btn.active{opacity:1;}
-.gnav-ico{font-size:22px;line-height:1;}
-.gnav-lbl{font-size:10px;color:var(--tx);letter-spacing:0.05em;}
-.gnav-spacer{height:72px;}
+.gnav-btn:active{transform:scale(0.90);}
+.gnav-ico-wrap{
+  width:46px;height:30px;border-radius:10px;
+  display:flex;align-items:center;justify-content:center;
+  background:transparent;
+  transition:background 0.22s;
+}
+.gnav-btn.active .gnav-ico-wrap{background:rgba(255,255,255,0.16);}
+.gnav-ico{font-size:19px;line-height:1;}
+.gnav-lbl{
+  font-size:10px;letter-spacing:0.04em;
+  color:rgba(255,255,255,0.38);
+  transition:color 0.22s;
+}
+.gnav-btn.active .gnav-lbl{color:rgba(255,255,255,0.88);}
+.gnav-spacer{height:76px;}
 .bonus-now{font-size:10px;color:rgba(80,200,110,0.9);}
 .bonus-time{font-size:10px;color:var(--tx3);}
 
@@ -2698,15 +2711,15 @@ function testContextPopup(){
 <!-- FAB menu -->
 <nav class="gnav" id="gnav">
   <div class="gnav-btn active" id="gnav-main" onclick="switchP('main')">
-    <div class="gnav-ico">🏠</div>
+    <div class="gnav-ico-wrap"><div class="gnav-ico">🏠</div></div>
     <div class="gnav-lbl">ホーム</div>
   </div>
   <div class="gnav-btn" id="gnav-stats" onclick="switchP('stats')">
-    <div class="gnav-ico">📅</div>
+    <div class="gnav-ico-wrap"><div class="gnav-ico">📅</div></div>
     <div class="gnav-lbl">記録</div>
   </div>
   <div class="gnav-btn" id="gnav-settings" onclick="switchP('settings')">
-    <div class="gnav-ico">⚙️</div>
+    <div class="gnav-ico-wrap"><div class="gnav-ico">⚙️</div></div>
     <div class="gnav-lbl">設定</div>
   </div>
 </nav>
