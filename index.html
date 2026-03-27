@@ -90,6 +90,20 @@ body{font-family:'Noto Sans JP',sans-serif;min-height:100dvh;position:relative;
   letter-spacing:0.06em;line-height:1;text-shadow:var(--shadow);}
 .app-date{font-size:11px;color:var(--tx2);margin-top:5px;}
 .greeting{font-size:12px;color:var(--tx2);margin-top:3px;font-weight:300;}
+.next-chip{
+  display:inline-flex;align-items:center;gap:5px;
+  margin-top:5px;padding:3px 10px 3px 8px;
+  border-radius:20px;
+  background:rgba(255,255,255,0.08);
+  border:1px solid rgba(255,255,255,0.12);
+  font-size:11px;color:var(--tx2);
+  transition:opacity 0.4s;
+}
+.next-chip-label{font-size:10px;color:var(--tx3);letter-spacing:0.04em;}
+.next-chip-time{
+  font-family:'JetBrains Mono',monospace;font-size:10px;
+  color:var(--tx3);margin-left:2px;
+}
 .clock{font-family:'JetBrains Mono',monospace;font-size:30px;color:var(--tx);
   text-align:right;text-shadow:var(--shadow);}
 
@@ -188,9 +202,16 @@ body{font-family:'Noto Sans JP',sans-serif;min-height:100dvh;position:relative;
 .swipe-card.td::before{background:rgba(40,200,80,0.20);opacity:1;}
 .swipe-card.ts::before{background:rgba(200,40,40,0.20);opacity:1;}
 
-.swipe-card.state-done{opacity:0.42;}
-.swipe-card.state-skip{opacity:0.35;}
+.swipe-card.state-done{opacity:0.45;}
+.swipe-card.state-skip{opacity:0.38;}
 .swipe-card.state-snooze{border-style:dashed!important;}
+/* 完了・スキップ済みカードはコンパクト表示 */
+.swipe-card.state-done,
+.swipe-card.state-skip{padding:7px 14px;}
+.swipe-card.state-done .c-msg,
+.swipe-card.state-skip .c-msg{display:none;}
+.swipe-card.state-done .c-time,
+.swipe-card.state-skip .c-time{display:none;}
 @keyframes cpulse{0%,100%{box-shadow:0 0 0 1.5px rgba(255,255,255,0.5);}50%{box-shadow:0 0 0 3px rgba(255,255,255,0.10);}}
 .swipe-card.upcoming{animation:cpulse 2.5s infinite;}
 @keyframes pushHL{0%{box-shadow:0 0 0 3px rgba(255,210,80,0.95),0 0 28px rgba(255,210,80,0.45);}70%{box-shadow:0 0 0 2px rgba(255,210,80,0.5),0 0 12px rgba(255,210,80,0.2);}100%{box-shadow:none;}}
@@ -254,6 +275,13 @@ body{font-family:'Noto Sans JP',sans-serif;min-height:100dvh;position:relative;
 .cat-hdr.open .cat-chev{transform:rotate(180deg);}
 .cat-body{display:none;padding-bottom:4px;}
 .cat-body.open{display:block;}
+/* カテゴリー全完了時のスタイル */
+.cat-hdr.all-done{
+  border-left-color:rgba(60,200,100,0.50);
+  opacity:0.62;
+}
+.cat-hdr.all-done .cat-nm{color:var(--tx2);}
+.cat-hdr.all-done .cat-sb{color:rgba(80,210,110,0.80);}
 
 /* ════════════════════════════
    SWIPE FLASH OVERLAY
@@ -445,34 +473,44 @@ body{font-family:'Noto Sans JP',sans-serif;min-height:100dvh;position:relative;
   position:fixed;bottom:0;left:0;right:0;
   z-index:100001; /* statsPanel/settingsPanel(99999)より上 */
   display:flex;
-  background:rgba(6,5,20,0.80);
-  backdrop-filter:blur(24px) saturate(1.5);
-  -webkit-backdrop-filter:blur(24px) saturate(1.5);
-  border-top:1px solid rgba(255,255,255,0.09);
+  background:rgba(8,6,24,0.62);
+  backdrop-filter:blur(20px) saturate(1.2);
+  -webkit-backdrop-filter:blur(20px) saturate(1.2);
+  border-top:1px solid rgba(255,255,255,0.11);
   padding-bottom:env(safe-area-inset-bottom);
 }
 .gnav-btn{
   flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
-  padding:8px 0 10px;cursor:pointer;touch-action:manipulation;gap:5px;
+  padding:8px 0 10px;cursor:pointer;touch-action:manipulation;gap:4px;
+  position:relative;
   -webkit-tap-highlight-color:transparent;
   transition:transform 0.15s;
 }
 .gnav-btn:active{transform:scale(0.90);}
+/* アクティブページを示すインジケーターライン（上部） */
+.gnav-btn.active::before{
+  content:'';
+  position:absolute;top:0;left:50%;transform:translateX(-50%);
+  width:30px;height:3px;
+  border-radius:0 0 3px 3px;
+  background:rgba(255,255,255,0.80);
+}
 .gnav-ico-wrap{
-  width:46px;height:30px;border-radius:10px;
+  width:44px;height:28px;border-radius:10px;
   display:flex;align-items:center;justify-content:center;
   background:transparent;
   transition:background 0.22s;
 }
-.gnav-btn.active .gnav-ico-wrap{background:rgba(255,255,255,0.16);}
-.gnav-ico{font-size:19px;line-height:1;}
+.gnav-btn.active .gnav-ico-wrap{background:rgba(255,255,255,0.13);}
+.gnav-ico{font-size:19px;line-height:1;transition:transform 0.22s;}
+.gnav-btn.active .gnav-ico{transform:scale(1.08);}
 .gnav-lbl{
-  font-size:10px;letter-spacing:0.04em;
-  color:rgba(255,255,255,0.38);
+  font-size:10px;letter-spacing:0.03em;
+  color:rgba(255,255,255,0.36);
   transition:color 0.22s;
 }
-.gnav-btn.active .gnav-lbl{color:rgba(255,255,255,0.88);}
-.gnav-spacer{height:76px;}
+.gnav-btn.active .gnav-lbl{color:rgba(255,255,255,0.95);font-weight:500;}
+.gnav-spacer{height:72px;}
 .bonus-now{font-size:10px;color:rgba(80,200,110,0.9);}
 .bonus-time{font-size:10px;color:var(--tx3);}
 
@@ -617,6 +655,12 @@ body{font-family:'Noto Sans JP',sans-serif;min-height:100dvh;position:relative;
       <div class="app-title">ゆるるん</div>
       <div class="app-date" id="appDate"></div>
       <div class="greeting" id="greeting"></div>
+      <div class="next-chip" id="nextChip" style="display:none">
+        <span class="next-chip-label">次</span>
+        <span id="nextChipIcon"></span>
+        <span id="nextChipTitle"></span>
+        <span class="next-chip-time" id="nextChipTime"></span>
+      </div>
     </div>
     <div><div class="clock" id="clock"></div></div>
   </div>
@@ -1599,11 +1643,14 @@ function renderCat(prefix,catId,items,nm){
   const dots=document.getElementById(prefix+'Dots');
   const sb=document.getElementById(prefix+'Sb');
   const chev=document.getElementById(prefix+'Chev');
+  const allDone=items.length>0&&items.every(r=>states[r.id]==='done'||states[r.id]==='skip');
   const isOpen=expandedCat===catId;
   dots.innerHTML=items.map(r=>`<div class="cdot${states[r.id]?' '+states[r.id]:''}"></div>`).join('');
   const dn=items.filter(r=>states[r.id]==='done').length;
-  sb.textContent=dn>0?`${dn}/${items.length} 完了`:items.map(r=>r.title).join('・');
+  const sk=items.filter(r=>states[r.id]==='skip').length;
+  sb.textContent=allDone?`全${items.length}件 完了 ✓`:dn>0?`${dn}/${items.length} 完了`:items.map(r=>r.title).join('・');
   hdr.classList.toggle('open',isOpen);
+  hdr.classList.toggle('all-done',allDone);
   chev.style.transform=isOpen?'rotate(180deg)':'';
   body.innerHTML='';body.classList.toggle('open',isOpen);
   if(!isOpen)return;
@@ -1853,9 +1900,30 @@ function closeMpop(){
 function updateClock(){
   const now=new Date(),days=['日','月','火','水','木','金','土'];
   const sl=slot(now.getHours());
+  const nm=NM();
   document.getElementById('clock').textContent=`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
   document.getElementById('appDate').textContent=`${now.getMonth()+1}月${now.getDate()}日（${days[now.getDay()]}）`;
   document.getElementById('greeting').textContent=GREETINGS[sl];
+  // 次の予定チップを更新
+  try{
+    const chip=document.getElementById('nextChip');
+    if(chip){
+      const upcoming=activeItems()
+        .filter(function(r){return !states[r.id]&&PT(r.time)>nm;})
+        .sort(function(a,b){return PT(a.time)-PT(b.time);});
+      if(upcoming.length>0){
+        const nx=upcoming[0];
+        const diff=PT(nx.time)-nm;
+        const diffStr=diff<60?`あと${diff}分`:`あと${Math.floor(diff/60)}時間`;
+        document.getElementById('nextChipIcon').textContent=nx.icon;
+        document.getElementById('nextChipTitle').textContent=nx.title;
+        document.getElementById('nextChipTime').textContent=`${nx.time}（${diffStr}）`;
+        chip.style.display='inline-flex';
+      } else {
+        chip.style.display='none';
+      }
+    }
+  }catch(e){}
 }
 
 /* ════════════════════════════════════════════
